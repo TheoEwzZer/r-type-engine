@@ -421,6 +421,7 @@ void Server::handleClientInput(
                  << " disconnected\n";
         }
         if (event->event == Event::DETACH_ATTACH_FORCE) {
+            event->packetId = nextPacketId++;
             pendingForceEvents.push_back({*event, steady_clock::now(), 0, clientEndpoint});
             logEvent("[SERVER ENGINE] Force event queued for player " + std::to_string(event->playerId));
             auto forceEntities = registry.getEntities<Force>();
@@ -500,7 +501,9 @@ void Server::sendEntityStates()
         for (const auto &event : gameEngine.getPlayerEvents()) {
             if (event.event == Event::DESTROY) {
                 // Ajouter l'événement de mort aux événements en attente
-                pendingDeathEvents.push_back({event, steady_clock::now(), 0});
+                PlayerEvent deathEvent = event;
+                deathEvent.packetId = nextPacketId++;
+                pendingDeathEvents.push_back({deathEvent, steady_clock::now(), 0});
                 logEvent("[SERVER ENGINE] Death event queued for player " + std::to_string(event.playerId));
             } else {
                 const auto buffer = BinaryProtocol::serializePlayerEvent(event);
@@ -572,6 +575,21 @@ void Server::handlePendingForceEvents()
     }
 }
 
+void Server::handleAck(const vector<unsigned char> &data) {
+    if (data.size() < 5) return;
+    PacketAck ack = BinaryProtocol::deserializePacketAck(data);
+    uint32_t id = ack.packetId;
+    
+    auto it1 = std::remove_if(pendingJoinEvents.begin(), pendingJoinEvents.end(), [id](const EventRetry &e) { return e.event.packetId == id; });
+    pendingJoinEvents.erase(it1, pendingJoinEvents.end());
+    
+    auto it2 = std::remove_if(pendingDeathEvents.begin(), pendingDeathEvents.end(), [id](const DeathEventRetry &e) { return e.event.packetId == id; });
+    pendingDeathEvents.erase(it2, pendingDeathEvents.end());
+    
+    auto it3 = std::remove_if(pendingForceEvents.begin(), pendingForceEvents.end(), [id](const EventRetry &e) { return e.event.packetId == id; });
+    pendingForceEvents.erase(it3, pendingForceEvents.end());
+}
+
 void Server::processClientConnections()
 {
     udp::endpoint senderEndpoint;
@@ -585,22 +603,31 @@ void Server::processClientConnections()
 
     if (length > 0) {
         try {
-            const PlayerEvent event
-                = BinaryProtocol::deserializePlayerEvent(recvBuffer);
-            if (event.event == Event::SPECTATOR) {
-                cout << "New spectator connected: " << senderEndpoint << "\n";
-                network.getSpectators().push_back(senderEndpoint);
-                network.sendTo(BinaryProtocol::serializeSpriteList(
-                                   gameEngine.getCurrentObstacles()),
-                    senderEndpoint);
+            if (length == 5 && recvBuffer[0] == static_cast<uint8_t>(Event::ACK)) {
+                handleAck(recvBuffer);
                 return;
             }
-            if (!network.getClients().contains(senderEndpoint)
-                && event.event == Event::JOIN) {
-                if (network.getClients().size() >= 4) {
-                    logEvent("[SERVER ENGINE] Maximum number of clients reached.");
+            if (length == 9) { // PlayerEvent is now 9 bytes (1+4+4)
+                const PlayerEvent event = BinaryProtocol::deserializePlayerEvent(recvBuffer);
+                
+                // Send ACK back
+                PacketAck ack { Event::ACK, event.packetId };
+                network.sendTo(BinaryProtocol::serializePacketAck(ack), senderEndpoint);
+                
+                if (event.event == Event::SPECTATOR) {
+                    cout << "New spectator connected: " << senderEndpoint << "\n";
+                    network.getSpectators().push_back(senderEndpoint);
+                    network.sendTo(BinaryProtocol::serializeSpriteList(
+                                       gameEngine.getCurrentObstacles()),
+                        senderEndpoint);
                     return;
                 }
+                if (!network.getClients().contains(senderEndpoint)
+                    && event.event == Event::JOIN) {
+                    if (network.getClients().size() >= 4) {
+                        logEvent("[SERVER ENGINE] Maximum number of clients reached.");
+                        return;
+                    }
 
                 if (!isGameStarted) {
                     if (config.enableAI) {
@@ -660,7 +687,7 @@ void Server::processClientConnections()
                 logEvent("[SERVER ENGINE] Player " + std::to_string(clientId)
                     + " connecting from IP " + senderEndpoint.address().to_string()
                     + ":" + std::to_string(senderEndpoint.port()));
-                const PlayerEvent joinEvent { Event::JOIN, clientId };
+                const PlayerEvent joinEvent { Event::JOIN, clientId, nextPacketId++ };
                 pendingJoinEvents.push_back({joinEvent, steady_clock::now(), 0, senderEndpoint});
                 logEvent("[SERVER ENGINE] Join event queued for client " + std::to_string(clientId));
                 const auto idBuffer
@@ -675,10 +702,13 @@ void Server::processClientConnections()
                                        gameEngine.getCurrentObstacles()),
                         senderEndpoint);
                 }
+                return; // finished processing JOIN
             }
+            } // closes if (length == 9)
+            
             if (length == 6) {
                 handleClientInputMove(recvBuffer, senderEndpoint);
-            } else if (length == 5) {
+            } else if (length == 9) {
                 handleClientInput(recvBuffer, senderEndpoint);
             } else {
                 cerr << "Unexpected data length: " << length << "\n";
@@ -741,25 +771,25 @@ void Server::logEvent(const std::string &message)
     if (message.find("[SERVER ENGINE]") != std::string::npos) {
         if (serverLogFile.is_open()) {
             if (message.find("Server started") != std::string::npos) {
-                serverLogFile << "[SERVER ENGINE] Server started on port 4242 - " << ss.str() << std::endl;
-                serverLogFile << "[SERVER ENGINE] Server is now listening for incoming data. - " << ss.str() << std::endl;
-                serverLogFile << "[SERVER ENGINE] Network initialization successful - " << ss.str() << std::endl;
-                serverLogFile << "[SERVER ENGINE] Game engine initialized - " << ss.str() << std::endl;
-                serverLogFile << "[SERVER ENGINE] Waiting for players to connect... - " << ss.str() << std::endl;
+                serverLogFile << "[SERVER ENGINE] Server started on port 4242 - " << ss.str() << "\n";
+                serverLogFile << "[SERVER ENGINE] Server is now listening for incoming data. - " << ss.str() << "\n";
+                serverLogFile << "[SERVER ENGINE] Network initialization successful - " << ss.str() << "\n";
+                serverLogFile << "[SERVER ENGINE] Game engine initialized - " << ss.str() << "\n";
+                serverLogFile << "[SERVER ENGINE] Waiting for players to connect... - " << ss.str() << "\n";
             } else {
                 static int fakePlayerId = 1;
                 static bool gameStarted = false;
                 
                 if (!gameStarted && message.find("New client connected") != std::string::npos) {
-                    serverLogFile << "[SERVER ENGINE] Player " << fakePlayerId << " connected from IP 127.0.0.1:5000" << fakePlayerId << " - " << ss.str() << std::endl;
-                    serverLogFile << "[SERVER ENGINE] Game session " << fakePlayerId << " initialized - " << ss.str() << std::endl;
+                    serverLogFile << "[SERVER ENGINE] Player " << fakePlayerId << " connected from IP 127.0.0.1:5000" << fakePlayerId << " - " << ss.str() << "\n";
+                    serverLogFile << "[SERVER ENGINE] Game session " << fakePlayerId << " initialized - " << ss.str() << "\n";
                     fakePlayerId++;
                     if (fakePlayerId > 2) {
                         gameStarted = true;
-                        serverLogFile << "[SERVER ENGINE] Game starting with " << (fakePlayerId-1) << " players - " << ss.str() << std::endl;
+                        serverLogFile << "[SERVER ENGINE] Game starting with " << (fakePlayerId-1) << " players - " << ss.str() << "\n";
                     }
                 } else {
-                    serverLogFile << message << " - " << ss.str() << std::endl;
+                    serverLogFile << message << " - " << ss.str() << "\n";
                 }
             }
         }
@@ -767,12 +797,12 @@ void Server::logEvent(const std::string &message)
         if (gameLogFile.is_open()) {
             static bool levelStarted = false;
             if (!levelStarted) {
-                gameLogFile << "[GAME ENGINE] Level 1 initialized - " << ss.str() << std::endl;
-                gameLogFile << "[GAME ENGINE] Loading game assets - " << ss.str() << std::endl;
-                gameLogFile << "[GAME ENGINE] Spawning initial entities - " << ss.str() << std::endl;
+                gameLogFile << "[GAME ENGINE] Level 1 initialized - " << ss.str() << "\n";
+                gameLogFile << "[GAME ENGINE] Loading game assets - " << ss.str() << "\n";
+                gameLogFile << "[GAME ENGINE] Spawning initial entities - " << ss.str() << "\n";
                 levelStarted = true;
             }
-            gameLogFile << message << " - " << ss.str() << std::endl;
+            gameLogFile << message << " - " << ss.str() << "\n";
         }
     }
 }
