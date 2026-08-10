@@ -7,7 +7,7 @@
 
 #pragma once
 
-#include "../Engine/Entity.hpp"
+#include "Entity.hpp"
 #include <asio.hpp>
 #include <map>
 #include <memory>

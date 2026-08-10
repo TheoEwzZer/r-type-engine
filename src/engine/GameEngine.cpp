@@ -12,11 +12,6 @@
 
 using namespace rtype;
 
-map<udp::endpoint, shared_ptr<ecs::Entity>, less<>>
-GameEngine::getClient() const
-{
-    return network.getClients();
-}
 
 void GameEngine::initializeObstacles()
 {
@@ -627,8 +622,11 @@ Position GameEngine::findNearestPlayer(const int x, const int y)
 {
     Position nearestPlayerPos { 0, 0 };
     float minDistance = numeric_limits<float>::max();
-    for (const auto &[endpoint, playerEntity] : getClient()) {
-        auto &playerPosOpt = registry.getComponent<Position>(*playerEntity);
+    auto &players = registry.getComponents<Player>();
+    auto &positions = registry.getComponents<Position>();
+    for (size_t i = 0; i < players.size(); ++i) {
+        if (!players[i].has_value() || !positions[i].has_value()) continue;
+        auto &playerPosOpt = positions[i];
         if (playerPosOpt.has_value()) {
             const int dx = playerPosOpt->x - x;
             const int dy = playerPosOpt->y - y;
@@ -717,6 +715,7 @@ void GameEngine::updateBoss1DeathSprite(
     sprite.height = AssetManager::getHeight(BOSS1_DEATH);
     sprite.rotation = 0;
 }
+
 
 void GameEngine::detachForcesFromPlayer(
     Registry &registry, const ecs::Entity playerEntity) const

@@ -13,7 +13,7 @@
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <algorithm>
-#include <asio.hpp>
+#include "src/Network/INetworkClient.hpp"
 #include <chrono>
 #include <iostream>
 #include <random>
@@ -22,8 +22,7 @@
 #include <vector>
 
 using namespace std;
-using namespace asio;
-using namespace asio::ip;
+
 using namespace std::chrono;
 using namespace rtype;
 using enum rtype::Direction;
@@ -90,9 +89,7 @@ private:
     void fadeOut();
 
     vector<Particle> particles;
-    asio::io_context ioContext;
-    asio::ip::udp::socket socket;
-    asio::ip::udp::endpoint serverEndpoint;
+    std::unique_ptr<INetworkClient> network;
     sf::RenderWindow &window;
     sf::Clock gameClock;
     map<unsigned int, sf::Sprite> sprites;

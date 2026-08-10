@@ -12,9 +12,9 @@
 using namespace rtype;
 
 GameEngine::GameEngine(
-    Registry &registry, const EngineConfig &config, Network &network) :
+    Registry &registry, const EngineConfig &config) :
     registry(registry),
-    config(config), network(network)
+    config(config)
 {
     gen = mt19937(rd());
     registry.registerComponent<Position>();

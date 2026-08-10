@@ -6,17 +6,17 @@
 */
 #pragma once
 
-#include "../Engine/AssetManager.hpp"
-#include "../Engine/Components/AI.hpp"
-#include "../Engine/Components/Animation.hpp"
-#include "../Engine/Components/Controllable.hpp"
-#include "../Engine/Components/Player.hpp"
-#include "../Engine/Components/Position.hpp"
-#include "../Engine/Components/Projectile.hpp"
-#include "../Engine/EngineConfig.hpp"
-#include "../Engine/GameEngine.hpp"
-#include "../Engine/Network.hpp"
-#include "../Engine/Registry.hpp"
+#include "AssetManager.hpp"
+#include "Components/AI.hpp"
+#include "Components/Animation.hpp"
+#include "Components/Controllable.hpp"
+#include "Components/Player.hpp"
+#include "Components/Position.hpp"
+#include "Components/Projectile.hpp"
+#include "EngineConfig.hpp"
+#include "GameEngine.hpp"
+#include "Network.hpp"
+#include "Registry.hpp"
 #include "Protocol.hpp"
 #include <asio.hpp>
 #include <chrono>

@@ -6,11 +6,11 @@
 */
 
 #include "Client.hpp"
+#include "src/Network/AsioNetworkClient.hpp"
 
 Client::Client(sf::RenderWindow &window, InputManager &inputManager,
     bool spectatorMode, int skin) :
-    socket(ioContext),
-    serverEndpoint(address::from_string("127.0.0.1"), 4242), window(window),
+    network(std::make_unique<AsioNetworkClient>("127.0.0.1", 4242)), window(window),
     clientId(0), clientIdReceived(false), inputManager(inputManager),
     lastProjectileTime(steady_clock::now()),
     clientEngine(make_unique<ClientEngine>()), spectatorMode(spectatorMode),
@@ -124,8 +124,8 @@ void Client::showGameOverScreen()
 void Client::handleSocketOpen()
 {
     try {
-        socket.open(udp::v4());
-    } catch (exception &e) {
+        network->open();
+    } catch (std::exception &e) {
         ::exit(0);
     }
 }
@@ -181,19 +181,17 @@ void Client::handleClientIdReception()
     static auto lastJoinSendTime = steady_clock::now();
     const auto now = steady_clock::now();
     if (duration_cast<milliseconds>(now - lastJoinSendTime).count() > 1000) {
-        socket.send_to(buffer(connectBuffer.data(), connectBuffer.size()), serverEndpoint);
+        network->send(connectBuffer);
         lastJoinSendTime = now;
     }
 
     vector<unsigned char> recvBuffer(65'504);
-    udp::endpoint senderEndpoint;
     size_t length = 0;
-    try {
-        socket.non_blocking(true);
-        length = socket.receive_from(buffer(recvBuffer), senderEndpoint);
+    network->setNonBlocking(true);
+    length = network->receive(recvBuffer);
+    if (!network->isWouldBlock() && length > 0) {
         recvBuffer.resize(length);
-        if ((length > 0)
-            && (recvBuffer[0] == static_cast<unsigned char>(Event::JOIN))) {
+        if (recvBuffer[0] == static_cast<unsigned char>(Event::JOIN)) {
             const PlayerEvent event
                 = BinaryProtocol::deserializePlayerEvent(recvBuffer);
             if (event.event == Event::JOIN) {
@@ -201,10 +199,6 @@ void Client::handleClientIdReception()
                 clientIdReceived = true;
                 cout << "Received client ID: " << clientId << "\n";
             }
-        }
-    } catch (const system_error &e) {
-        if (e.code() != error::would_block) {
-            cerr << "Receive error: " << e.what() << "\n";
         }
     }
 }
@@ -292,7 +286,7 @@ void Client::handlePlayerInput(Direction &dx, Direction &dy)
         PlayerEvent event { Event::DESTROY, clientId, nextPacketId++ };
         pendingEvents.push_back({event, steady_clock::now()});
         auto buffer = BinaryProtocol::serializePlayerEvent(event);
-        socket.send_to(asio::buffer(buffer), serverEndpoint);
+        network->send(buffer);
     }
 
     bool isEKeyPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::E);
@@ -300,7 +294,7 @@ void Client::handlePlayerInput(Direction &dx, Direction &dy)
         PlayerEvent event { Event::DETACH_ATTACH_FORCE, clientId, nextPacketId++ };
         pendingEvents.push_back({event, steady_clock::now()});
         auto buffer = BinaryProtocol::serializePlayerEvent(event);
-        socket.send_to(asio::buffer(buffer), serverEndpoint);
+        network->send(buffer);
     }
     wasEKeyPressed = isEKeyPressed;
 }
@@ -316,7 +310,7 @@ void Client::fireProjectile(const Event shootEvent)
     const PlayerEvent event { shootEvent, clientId, nextPacketId++ };
     pendingEvents.push_back({event, steady_clock::now()});
     auto buffer = BinaryProtocol::serializePlayerEvent(event);
-    socket.send_to(asio::buffer(buffer), serverEndpoint);
+    network->send(buffer);
     lastProjectileTime = now;
     clientEngine->playSound("shoot");
     chargeAnimationFrame = 0;
@@ -334,7 +328,7 @@ void Client::handleSocketSend(const Direction dx, const Direction dy)
     if ((duration > 16) && ((dx != NONE) || (dy != NONE) || (!lastSentNone))) {
         const PlayerEventMove event { dx, dy, clientId };
         auto buffer = BinaryProtocol::serializePlayerEventMove(event);
-        socket.send_to(asio::buffer(buffer), serverEndpoint);
+        network->send(buffer);
         lastSend = now;
         lastSentNone = ((dx == NONE) && (dy == NONE));
     }
@@ -343,7 +337,7 @@ void Client::handleSocketSend(const Direction dx, const Direction dy)
     for (auto &pending : pendingEvents) {
         if (duration_cast<milliseconds>(now - pending.lastSent).count() >= 200) {
             auto buffer = BinaryProtocol::serializePlayerEvent(pending.event);
-            socket.send_to(asio::buffer(buffer), serverEndpoint);
+            network->send(buffer);
             pending.lastSent = now;
         }
     }
@@ -352,14 +346,15 @@ void Client::handleSocketSend(const Direction dx, const Direction dy)
 void Client::handleSocketReceive()
 {
     vector<unsigned char> recvBuffer(65'504);
-    udp::endpoint senderEndpoint;
     size_t length = 0;
-    try {
-        socket.non_blocking(true);
-        while (true) {
-            recvBuffer.resize(65'504);
-            length = socket.receive_from(buffer(recvBuffer), senderEndpoint);
-            recvBuffer.resize(length);
+    network->setNonBlocking(true);
+    while (true) {
+        recvBuffer.resize(65'504);
+        length = network->receive(recvBuffer);
+        if (network->isWouldBlock() || length == 0) {
+            break;
+        }
+        recvBuffer.resize(length);
             if (length > 0) {
             uint8_t eventType = recvBuffer[0];
             if (eventType == static_cast<uint8_t>(Event::SCORE_UPDATE)) {
@@ -408,7 +403,7 @@ void Client::handleSocketReceive()
                 // Send ACK back for reliable events from server
                 PacketAck ack { Event::ACK, event.packetId };
                 auto ackBuffer = BinaryProtocol::serializePacketAck(ack);
-                socket.send_to(asio::buffer(ackBuffer), serverEndpoint);
+                network->send(ackBuffer);
                 
                 if (event.event == Event::BOSS_FIGHT) {
                     isBossFight = (event.playerId == 1);
@@ -447,7 +442,7 @@ void Client::handleSocketReceive()
                 
                 PacketAck ack { Event::ACK, event.packetId };
                 auto ackBuffer = BinaryProtocol::serializePacketAck(ack);
-                socket.send_to(asio::buffer(ackBuffer), serverEndpoint);
+                network->send(ackBuffer);
                 if (event.playerId == clientId) {
                     playerLives = event.lives;
                     if (playerLives <= 0) {
@@ -461,14 +456,14 @@ void Client::handleSocketReceive()
                     window.close();
                     auto buffer = BinaryProtocol::serializePlayerEvent(
                         { Event::DESTROY, clientId });
-                    socket.send_to(asio::buffer(buffer), serverEndpoint);
+                    network->send(buffer);
                 }
             } else if (length == 5 && eventType != static_cast<uint8_t>(Event::ACK)) {
                 const PlayerEventLevel event = BinaryProtocol::deserializePlayerEventLevel(recvBuffer);
                 
                 PacketAck ack { Event::ACK, event.packetId };
                 auto ackBuffer = BinaryProtocol::serializePacketAck(ack);
-                socket.send_to(asio::buffer(ackBuffer), serverEndpoint);
+                network->send(ackBuffer);
                 
                 level = event.level;
                 if (level == 3) {
@@ -506,11 +501,6 @@ void Client::handleSocketReceive()
             } else {
                 cerr << "Received unknown data of length " << length << "\n";
             }
-        }
-        }
-    } catch (const system_error &e) {
-        if (e.code() != error::would_block) {
-            cerr << "Receive error: " << e.what() << "\n";
         }
     }
 }
@@ -647,13 +637,12 @@ void Client::run()
 {
     handleSocketOpen();
     if (!spectatorMode) {
-        socket.send_to(buffer(connectBuffer.data(), connectBuffer.size()),
-            serverEndpoint);
+        network->send(connectBuffer);
     } else {
         cout << "Entering spectator mode\n";
         auto spectatorBuffer
             = BinaryProtocol::serializePlayerEvent({ Event::SPECTATOR, 0 });
-        socket.send_to(asio::buffer(spectatorBuffer), serverEndpoint);
+        network->send(spectatorBuffer);
     }
     lastSend = steady_clock::now();
     auto lastRenderTime = steady_clock::now();
@@ -684,7 +673,7 @@ void Client::run()
                 if (!spectatorMode) {
                     auto buffer = BinaryProtocol::serializePlayerEvent(
                         { Event::DESTROY, clientId });
-                    socket.send_to(asio::buffer(buffer), serverEndpoint);
+                    network->send(buffer);
                 }
             }
         }
@@ -730,7 +719,7 @@ void Client::run()
             renderWindow();
             lastRenderTime = now;
         }
-        ioContext.poll();
+        network->poll();
     }
 }
 

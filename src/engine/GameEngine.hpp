@@ -7,28 +7,27 @@
 
 #pragma once
 
-#include "../Engine/AssetManager.hpp"
-#include "../Engine/Components/AI.hpp"
-#include "../Engine/Components/Animation.hpp"
-#include "../Engine/Components/Boss1.hpp"
-#include "../Engine/Components/Boss2.hpp"
-#include "../Engine/Components/Collider.hpp"
-#include "../Engine/Components/Controllable.hpp"
-#include "../Engine/Components/Drawable.hpp"
-#include "../Engine/Components/Enemy.hpp"
-#include "../Engine/Components/Force.hpp"
-#include "../Engine/Components/Health.hpp"
-#include "../Engine/Components/Mob1.hpp"
-#include "../Engine/Components/Mob2.hpp"
-#include "../Engine/Components/Player.hpp"
-#include "../Engine/Components/Position.hpp"
-#include "../Engine/Components/Projectile.hpp"
-#include "../Engine/Components/Respawn.hpp"
-#include "../Engine/Components/SpeedBoost.hpp"
-#include "../Engine/Components/Turret.hpp"
-#include "../Engine/EngineConfig.hpp"
-#include "../Engine/Network.hpp"
-#include "../Engine/Registry.hpp"
+#include "AssetManager.hpp"
+#include "Components/AI.hpp"
+#include "Components/Animation.hpp"
+#include "Components/Boss1.hpp"
+#include "Components/Boss2.hpp"
+#include "Components/Collider.hpp"
+#include "Components/Controllable.hpp"
+#include "Components/Drawable.hpp"
+#include "Components/Enemy.hpp"
+#include "Components/Force.hpp"
+#include "Components/Health.hpp"
+#include "Components/Mob1.hpp"
+#include "Components/Mob2.hpp"
+#include "Components/Player.hpp"
+#include "Components/Position.hpp"
+#include "Components/Projectile.hpp"
+#include "Components/Respawn.hpp"
+#include "Components/SpeedBoost.hpp"
+#include "Components/Turret.hpp"
+#include "EngineConfig.hpp"
+#include "Registry.hpp"
 #include "Protocol.hpp"
 #include <chrono>
 #include <vector>
@@ -48,7 +47,7 @@ namespace rtype {
 class GameEngine {
 public:
     GameEngine(
-        Registry &registry, const EngineConfig &config, Network &network);
+        Registry &registry, const EngineConfig &config);
     void initializeObstacles();
     void runSystems();
     void update();
@@ -122,10 +121,7 @@ public:
 
     const vector<Sprite>& getCurrentSprites() const { return currentSprites; }
 
-    [[nodiscard]] map<udp::endpoint, shared_ptr<ecs::Entity>, less<>>
-    getClient() const;
-
-    [[nodiscard]] Network &getNetwork() { return network; }
+    void addPlayerEvent(const PlayerEvent &event);
 
     [[nodiscard]] const EngineConfig &getConfig() const { return config; }
 
@@ -187,8 +183,7 @@ private:
         Sprite &sprite, optional<Animation> &animation) const;
 
     Registry &registry;
-    const EngineConfig &config;
-    Network &network;
+    EngineConfig config;
     vector<Sprite> currentSprites;
     vector<PlayerEvent> playerEvents;
     vector<PlayerEventLife> playerLifeEvents;

@@ -17,7 +17,7 @@ using namespace rtype;
 Server::Server(const EngineConfig &config) :
     ioContext(), network(ioContext, 4242), recvBuffer(65'504),
     lastUpdate(steady_clock::now()), config(config),
-    gameEngine(registry, config, network), strand(ioContext.get_executor())
+    gameEngine(registry, config), strand(ioContext.get_executor())
 {
     std::filesystem::create_directory("logs");
 
@@ -484,7 +484,7 @@ void Server::sendEntityStates()
         for (const auto &event : gameEngine.getPlayerLifeEvents()) {
             const auto lifeBuffer
                 = BinaryProtocol::serializePlayerEventLife(event);
-            const auto &client = gameEngine.getClient();
+            const auto &client = network.getClients();
             const auto clientIt
                 = ranges::find_if(client, [&event](const auto &client) {
                       return static_cast<unsigned int>(*client.second)
