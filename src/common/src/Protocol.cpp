@@ -160,6 +160,7 @@ vector<unsigned char> BinaryProtocol::serializePlayerEvent(
     vector<unsigned char> buffer(sizeof(PlayerEvent));
     PlayerEvent tempEvent = event;
     tempEvent.playerId = toNetworkEndian(tempEvent.playerId);
+    tempEvent.packetId = toNetworkEndian(tempEvent.packetId);
     ::memcpy(buffer.data(), &tempEvent, sizeof(PlayerEvent));
     return buffer;
 }
@@ -168,11 +169,12 @@ PlayerEvent BinaryProtocol::deserializePlayerEvent(
     const vector<unsigned char> &buffer)
 {
     if (buffer.size() < sizeof(PlayerEvent)) {
-        return PlayerEvent { Event::MOVE, 0 };
+        return PlayerEvent { Event::MOVE, 0, 0 };
     }
     PlayerEvent event {};
     ::memcpy(&event, buffer.data(), sizeof(PlayerEvent));
     event.playerId = fromNetworkEndian(event.playerId);
+    event.packetId = fromNetworkEndian(event.packetId);
     return event;
 }
 
@@ -205,6 +207,7 @@ vector<unsigned char> BinaryProtocol::serializePlayerEventLife(
     PlayerEventLife tempEvent = event;
     tempEvent.playerId = toNetworkEndian(tempEvent.playerId);
     tempEvent.lives = toNetworkEndian(tempEvent.lives);
+    tempEvent.packetId = toNetworkEndian(tempEvent.packetId);
     ::memcpy(buffer.data(), &tempEvent, sizeof(PlayerEventLife));
     return buffer;
 }
@@ -213,12 +216,13 @@ PlayerEventLife BinaryProtocol::deserializePlayerEventLife(
     const vector<unsigned char> &buffer)
 {
     if (buffer.size() < sizeof(PlayerEventLife)) {
-        return PlayerEventLife { 0, 0 };
+        return PlayerEventLife { 0, 0, 0 };
     }
     PlayerEventLife event {};
     ::memcpy(&event, buffer.data(), sizeof(PlayerEventLife));
     event.playerId = fromNetworkEndian(event.playerId);
     event.lives = fromNetworkEndian(event.lives);
+    event.packetId = fromNetworkEndian(event.packetId);
     return event;
 }
 
@@ -228,6 +232,7 @@ vector<unsigned char> BinaryProtocol::serializePlayerEventLevel(
     vector<unsigned char> buffer(sizeof(PlayerEventLevel));
     PlayerEventLevel tempEvent = event;
     tempEvent.level = toNetworkEndian(tempEvent.level);
+    tempEvent.packetId = toNetworkEndian(tempEvent.packetId);
     ::memcpy(buffer.data(), &tempEvent, sizeof(PlayerEventLevel));
     return buffer;
 }
@@ -236,10 +241,33 @@ PlayerEventLevel BinaryProtocol::deserializePlayerEventLevel(
     const vector<unsigned char> &buffer)
 {
     if (buffer.size() < sizeof(PlayerEventLevel)) {
-        return PlayerEventLevel { 1 };
+        return PlayerEventLevel { 1, 0 };
     }
     PlayerEventLevel event {};
     ::memcpy(&event, buffer.data(), sizeof(PlayerEventLevel));
     event.level = fromNetworkEndian(event.level);
+    event.packetId = fromNetworkEndian(event.packetId);
     return event;
+}
+
+vector<unsigned char> BinaryProtocol::serializePacketAck(
+    const PacketAck &ack)
+{
+    vector<unsigned char> buffer(sizeof(PacketAck));
+    PacketAck tempAck = ack;
+    tempAck.packetId = toNetworkEndian(tempAck.packetId);
+    ::memcpy(buffer.data(), &tempAck, sizeof(PacketAck));
+    return buffer;
+}
+
+PacketAck BinaryProtocol::deserializePacketAck(
+    const vector<unsigned char> &buffer)
+{
+    if (buffer.size() < sizeof(PacketAck)) {
+        return PacketAck { Event::ACK, 0 };
+    }
+    PacketAck ack {};
+    ::memcpy(&ack, buffer.data(), sizeof(PacketAck));
+    ack.packetId = fromNetworkEndian(ack.packetId);
+    return ack;
 }

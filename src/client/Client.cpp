@@ -178,6 +178,13 @@ void Client::renderParticles()
 
 void Client::handleClientIdReception()
 {
+    static auto lastJoinSendTime = steady_clock::now();
+    const auto now = steady_clock::now();
+    if (duration_cast<milliseconds>(now - lastJoinSendTime).count() > 1000) {
+        socket.send_to(buffer(connectBuffer.data(), connectBuffer.size()), serverEndpoint);
+        lastJoinSendTime = now;
+    }
+
     vector<unsigned char> recvBuffer(65'504);
     udp::endpoint senderEndpoint;
     size_t length = 0;
@@ -282,15 +289,17 @@ void Client::handlePlayerInput(Direction &dx, Direction &dy)
             && sf::Joystick::isButtonPressed(
                 0, inputManager.getControllerBackButton()))) {
         window.close();
-        auto buffer = BinaryProtocol::serializePlayerEvent(
-            { Event::DESTROY, clientId });
+        PlayerEvent event { Event::DESTROY, clientId, nextPacketId++ };
+        pendingEvents.push_back({event, steady_clock::now()});
+        auto buffer = BinaryProtocol::serializePlayerEvent(event);
         socket.send_to(asio::buffer(buffer), serverEndpoint);
     }
 
     bool isEKeyPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::E);
     if (isEKeyPressed && !wasEKeyPressed) {
-        auto buffer = BinaryProtocol::serializePlayerEvent(
-            { Event::DETACH_ATTACH_FORCE, clientId });
+        PlayerEvent event { Event::DETACH_ATTACH_FORCE, clientId, nextPacketId++ };
+        pendingEvents.push_back({event, steady_clock::now()});
+        auto buffer = BinaryProtocol::serializePlayerEvent(event);
         socket.send_to(asio::buffer(buffer), serverEndpoint);
     }
     wasEKeyPressed = isEKeyPressed;
@@ -304,7 +313,8 @@ void Client::fireProjectile(const Event shootEvent)
     if (duration < 300) {
         return;
     }
-    const PlayerEvent event { shootEvent, clientId };
+    const PlayerEvent event { shootEvent, clientId, nextPacketId++ };
+    pendingEvents.push_back({event, steady_clock::now()});
     auto buffer = BinaryProtocol::serializePlayerEvent(event);
     socket.send_to(asio::buffer(buffer), serverEndpoint);
     lastProjectileTime = now;
@@ -328,6 +338,15 @@ void Client::handleSocketSend(const Direction dx, const Direction dy)
         lastSend = now;
         lastSentNone = ((dx == NONE) && (dy == NONE));
     }
+    
+    // Resend pending reliable events
+    for (auto &pending : pendingEvents) {
+        if (duration_cast<milliseconds>(now - pending.lastSent).count() >= 200) {
+            auto buffer = BinaryProtocol::serializePlayerEvent(pending.event);
+            socket.send_to(asio::buffer(buffer), serverEndpoint);
+            pending.lastSent = now;
+        }
+    }
 }
 
 void Client::handleSocketReceive()
@@ -337,9 +356,11 @@ void Client::handleSocketReceive()
     size_t length = 0;
     try {
         socket.non_blocking(true);
-        length = socket.receive_from(buffer(recvBuffer), senderEndpoint);
-        recvBuffer.resize(length);
-        if (length > 0) {
+        while (true) {
+            recvBuffer.resize(65'504);
+            length = socket.receive_from(buffer(recvBuffer), senderEndpoint);
+            recvBuffer.resize(length);
+            if (length > 0) {
             uint8_t eventType = recvBuffer[0];
             if (eventType == static_cast<uint8_t>(Event::SCORE_UPDATE)) {
                 if (length >= sizeof(uint32_t)) {
@@ -371,9 +392,20 @@ void Client::handleSocketReceive()
                         }
                     }
                 }
-            } else if (length == 5) {
-                const PlayerEvent event
-                    = BinaryProtocol::deserializePlayerEvent(recvBuffer);
+            } else if (length == 5 && eventType == static_cast<uint8_t>(Event::ACK)) {
+                PacketAck ack = BinaryProtocol::deserializePacketAck(recvBuffer);
+                uint32_t id = ack.packetId;
+                auto it = std::remove_if(pendingEvents.begin(), pendingEvents.end(),
+                    [id](const PendingEvent &e) { return e.event.packetId == id; });
+                pendingEvents.erase(it, pendingEvents.end());
+            } else if (length == 9) {
+                const PlayerEvent event = BinaryProtocol::deserializePlayerEvent(recvBuffer);
+                
+                // Send ACK back for reliable events from server
+                PacketAck ack { Event::ACK, event.packetId };
+                auto ackBuffer = BinaryProtocol::serializePacketAck(ack);
+                socket.send_to(asio::buffer(ackBuffer), serverEndpoint);
+                
                 if (event.event == Event::BOSS_FIGHT) {
                     isBossFight = (event.playerId == 1);
                     if (isBossFight) {
@@ -406,9 +438,12 @@ void Client::handleSocketReceive()
                         showGameOverScreen();
                     }
                 }
-            } else if (length == 8) {
-                const PlayerEventLife event
-                    = BinaryProtocol::deserializePlayerEventLife(recvBuffer);
+            } else if (length == 12) {
+                const PlayerEventLife event = BinaryProtocol::deserializePlayerEventLife(recvBuffer);
+                
+                PacketAck ack { Event::ACK, event.packetId };
+                auto ackBuffer = BinaryProtocol::serializePacketAck(ack);
+                socket.send_to(asio::buffer(ackBuffer), serverEndpoint);
                 if (event.playerId == clientId) {
                     playerLives = event.lives;
                     if (playerLives <= 0) {
@@ -424,9 +459,13 @@ void Client::handleSocketReceive()
                         { Event::DESTROY, clientId });
                     socket.send_to(asio::buffer(buffer), serverEndpoint);
                 }
-            } else if (length == 1) {
-                const PlayerEventLevel event
-                    = BinaryProtocol::deserializePlayerEventLevel(recvBuffer);
+            } else if (length == 5 && eventType != static_cast<uint8_t>(Event::ACK)) {
+                const PlayerEventLevel event = BinaryProtocol::deserializePlayerEventLevel(recvBuffer);
+                
+                PacketAck ack { Event::ACK, event.packetId };
+                auto ackBuffer = BinaryProtocol::serializePacketAck(ack);
+                socket.send_to(asio::buffer(ackBuffer), serverEndpoint);
+                
                 level = event.level;
                 if (level == 3) {
                     isGameOver = true;
@@ -463,6 +502,7 @@ void Client::handleSocketReceive()
             } else {
                 cerr << "Received unknown data of length " << length << "\n";
             }
+        }
         }
     } catch (const system_error &e) {
         if (e.code() != error::would_block) {

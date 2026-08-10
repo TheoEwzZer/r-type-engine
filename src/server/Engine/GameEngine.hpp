@@ -57,8 +57,8 @@ public:
     void addToScore(const unsigned int points);
     void spawnSpeedPowerUp();
     void systemSpeedBoostDrawable(Registry &registry,
-        SparseArray<Position> &positions, SparseArray<SpeedBoost> &speedBoosts,
-        SparseArray<Drawable> &drawables);
+        SparseArray<Position> &positions,
+        SparseArray<SpeedBoost> &speedBoosts);
     void systemSpeedBoostCollision(Registry &registry,
         SparseArray<Position> &positions, SparseArray<SpeedBoost> &speedBoosts,
         SparseArray<Controllable> &controllables);
@@ -119,6 +119,8 @@ public:
 
     void detachForcesFromPlayer(
         Registry &registry, const ecs::Entity playerEntity) const;
+
+    const vector<Sprite>& getCurrentSprites() const { return currentSprites; }
 
     [[nodiscard]] map<udp::endpoint, shared_ptr<ecs::Entity>, less<>>
     getClient() const;
@@ -187,6 +189,7 @@ private:
     Registry &registry;
     const EngineConfig &config;
     Network &network;
+    vector<Sprite> currentSprites;
     vector<PlayerEvent> playerEvents;
     vector<PlayerEventLife> playerLifeEvents;
     vector<PlayerEventLevel> playerLevelEvents;

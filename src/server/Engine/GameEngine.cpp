@@ -5,8 +5,10 @@
 ** GameEngine
 */
 
+#define _USE_MATH_DEFINES
 #include "GameEngine.hpp"
 #include <random>
+#include <cmath>
 
 using namespace rtype;
 
@@ -95,8 +97,7 @@ void GameEngine::update()
     }
     static float lastPowerUpTime = 0.0f;
     if (elapsedTime - lastPowerUpTime >= 15.0f) {
-        // Problème de perf dès que le premier appparait
-        // spawnSpeedPowerUp();
+        spawnSpeedPowerUp();
         lastPowerUpTime = elapsedTime;
     }
     if ((!isBossFight) && (!boss1Defeated) && (currentLevel == 1)
@@ -140,12 +141,8 @@ void GameEngine::update()
 }
 
 void GameEngine::systemSpeedBoostDrawable(Registry &registry,
-    SparseArray<Position> &positions, SparseArray<SpeedBoost> &speedBoosts,
-    SparseArray<Drawable> &drawables)
+    SparseArray<Position> &positions, SparseArray<SpeedBoost> &speedBoosts)
 {
-    static vector<Sprite> sprites;
-    sprites.clear();
-
     static bool powerUpExists = false;
     powerUpExists = false;
 
@@ -158,10 +155,8 @@ void GameEngine::systemSpeedBoostDrawable(Registry &registry,
 
         auto &pos = positions[i];
         const auto &speedBoost = speedBoosts[i];
-        auto &drawable = drawables[i];
 
-        if ((!pos.has_value()) || (!speedBoost.has_value())
-            || (!drawable.has_value())) {
+        if ((!pos.has_value()) || (!speedBoost.has_value())) {
             continue;
         }
         if (powerUpExists) {
@@ -171,18 +166,11 @@ void GameEngine::systemSpeedBoostDrawable(Registry &registry,
 
         powerUpExists = true;
         pos->x -= 2;
-        drawable->sprite.x = static_cast<unsigned short>(pos->x);
-        drawable->sprite.y = static_cast<unsigned short>(pos->y);
 
         if (pos->x < -50) {
             registry.killEntity(entity);
             continue;
         }
-
-        sprites.push_back(drawable->sprite);
-    }
-    if (!sprites.empty()) {
-        network.sendAll(BinaryProtocol::serializeSpriteList(sprites));
     }
 }
 

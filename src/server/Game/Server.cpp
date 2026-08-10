@@ -24,7 +24,11 @@ Server::Server(const EngineConfig &config) :
     auto now = std::chrono::system_clock::now();
     std::time_t now_time = std::chrono::system_clock::to_time_t(now);
     std::tm tm_now;
+#ifdef _WIN32
+    localtime_s(&tm_now, &now_time);
+#else
     localtime_r(&now_time, &tm_now);
+#endif
 
     std::stringstream ss;
     ss << "logs/log-game-"
@@ -454,14 +458,16 @@ void Server::sendEntityStates()
     handlePendingForceEvents();
 
     if (!gameEngine.getObstacles().empty()) {
-        network.sendAll(
-            BinaryProtocol::serializeSpriteList(gameEngine.getObstacles()));
         for (const auto &mob : gameEngine.getObstacles()) {
             logEvent("[GAME ENGINE] Mob " + std::to_string(mob.id) + " has appeared at (" + 
                      std::to_string(mob.x) + ", " + std::to_string(mob.y) + ").");
         }
         gameEngine.getObstacles().clear();
-        return;
+    }
+    
+    if (!gameEngine.getCurrentSprites().empty()) {
+        network.sendAll(
+            BinaryProtocol::serializeSpriteList(gameEngine.getCurrentSprites()));
     }
     if (!gameEngine.getPlayerLevelEvents().empty()) {
         for (const auto &event : gameEngine.getPlayerLevelEvents()) {
@@ -722,7 +728,11 @@ void Server::logEvent(const std::string &message)
         now.time_since_epoch()) % 1000;
     std::time_t timeNow = std::chrono::system_clock::to_time_t(now);
     std::tm tmNow;
+#ifdef _WIN32
+    localtime_s(&tmNow, &timeNow);
+#else
     localtime_r(&timeNow, &tmNow);
+#endif
 
     std::stringstream ss;
     ss << std::put_time(&tmNow, "%H:%M:%S.")

@@ -5,6 +5,7 @@
 ** GameEngineInit
 */
 
+#define _USE_MATH_DEFINES
 #include "GameEngine.hpp"
 #include <random>
 
@@ -80,7 +81,7 @@ GameEngine::GameEngine(
 
     registry.addSystem<Force>(
         bind_front(&GameEngine::systemUpdateForces, this));
-    registry.addSystem<Position, SpeedBoost, Drawable>(
+    registry.addSystem<Position, SpeedBoost>(
         bind_front(&GameEngine::systemSpeedBoostDrawable, this));
 
     registry.addSystem<Position, SpeedBoost, Controllable>(
@@ -595,11 +596,7 @@ void GameEngine::systemPositionDrawableControllable(Registry &registry,
 
         sprites.emplace_back(draw->sprite);
     }
-    if (!sprites.empty()) {
-        const auto bufferSprites
-            = BinaryProtocol::serializeSpriteList(sprites);
-        getNetwork().sendAll(bufferSprites);
-    }
+    currentSprites = sprites;
 }
 
 void GameEngine::systemPositionProjectileDrawable(Registry &registry,

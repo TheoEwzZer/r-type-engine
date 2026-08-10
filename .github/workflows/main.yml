@@ -8,18 +8,27 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     steps:
     - uses: actions/checkout@v4
     
-    - name: Install dependencies
+    - name: Install dependencies (Ubuntu)
+      if: runner.os == 'Linux'
       run: |
         sudo apt-get update
         sudo apt-get install -y cmake g++ clang-format
         sudo apt-get clean
     
-    - name: Build
+    - name: Build (Ubuntu)
+      if: runner.os == 'Linux'
       run: ./build.sh
+
+    - name: Build (Windows)
+      if: runner.os == 'Windows'
+      run: ./build.bat
 
   lint:
     runs-on: ubuntu-latest

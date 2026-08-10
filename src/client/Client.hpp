@@ -133,5 +133,12 @@ private:
     int skin;
     sf::Text lagText;
     int64_t duration = 0;
+    
+    struct PendingEvent {
+        PlayerEvent event;
+        steady_clock::time_point lastSent;
+    };
+    std::vector<PendingEvent> pendingEvents;
+    uint32_t nextPacketId = 1;
 };
 }
