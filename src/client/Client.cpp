@@ -418,10 +418,13 @@ void Client::handleSocketReceive()
                         sprites[sprite.id].setTextureRect(sf::IntRect(
                             sprite.x, sprite.y, sprite.width, sprite.height));
                         
-                        // Setup interpolation
-                        spriteStates[sprite.id].targetPosition = sf::Vector2f(
+                        // Setup interpolation and dead reckoning
+                        sf::Vector2f newTarget = sf::Vector2f(
                             static_cast<float>(sprite.gameX),
                             static_cast<float>(sprite.gameY));
+                        
+                        spriteStates[sprite.id].velocity = newTarget - spriteStates[sprite.id].targetPosition;
+                        spriteStates[sprite.id].targetPosition = newTarget;
                         
                         if (sprite.spritesheetIndex == 8) {
                             sprites[sprite.id].setRotation(

@@ -70,6 +70,7 @@ private:
         bool isInCollision = false;
         sf::Color originalColor;
         sf::Vector2f targetPosition;
+        sf::Vector2f velocity; // For dead reckoning
     };
 
     map<string, unique_ptr<sf::Music>, less<>> musics;

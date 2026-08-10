@@ -628,6 +628,32 @@ void GameEngine::systemPositionProjectile(Registry &registry,
     const size_t minSize = min({ positions.size(), projectiles.size() });
     auto colliderEntities = registry.getEntities<Collider>();
     auto forceEntities = registry.getEntities<Force>();
+    
+    const int CELL_SIZE = 128;
+    static unordered_map<int, vector<pair<Entity, Collider>>> spatialGrid;
+    for (auto& [key, vec] : spatialGrid) {
+        vec.clear();
+    }
+    
+    for (const auto &[obstacleEntity, obstacle] : colliderEntities) {
+        if (!registry.isEntityAlive(obstacleEntity)) continue;
+        auto &posOpt = registry.getComponent<Position>(obstacleEntity);
+        if (!posOpt.has_value()) continue;
+        int minX = posOpt->x / CELL_SIZE;
+        int maxX = (posOpt->x + obstacle.width * 2) / CELL_SIZE;
+        int minY = posOpt->y / CELL_SIZE;
+        int maxY = (posOpt->y + obstacle.height * 2) / CELL_SIZE;
+        
+        // Anti-lag bounds check
+        if (maxX - minX > 10) maxX = minX + 10;
+        if (maxY - minY > 10) maxY = minY + 10;
+        
+        for (int x = minX; x <= maxX; ++x) {
+            for (int y = minY; y <= maxY; ++y) {
+                spatialGrid[x + y * 1000].emplace_back(obstacleEntity, obstacle);
+            }
+        }
+    }
 
     for (size_t i = 0; i < minSize; ++i) {
         const auto &pos = positions[i];
@@ -684,42 +710,56 @@ void GameEngine::systemPositionProjectile(Registry &registry,
         if (!forceOpt.has_value()) {
             continue;
         }
-        for (auto &[enemyEntity, enemy] : colliderEntities) {
-            if (!registry.isEntityAlive(enemyEntity)) {
-                continue;
-            }
-            auto &enemyPosOpt = registry.getComponent<Position>(enemyEntity);
-            if (!enemyPosOpt.has_value()) {
-                continue;
-            }
-            if (ranges::find(force.hitObstacles, enemyEntity)
-                != force.hitObstacles.end()) {
-                continue;
-            }
-            const GameplayAsset forceAsset
-                = forceOpt->level == 1 ? FORCE1 : FORCE2;
-            if (checkCollisionWithObstacle(forcePosOpt.value(),
-                    enemyPosOpt.value(),
-                    static_cast<int>(
-                        AssetManager::getWidth(forceAsset) * 1.5f),
-                    static_cast<int>(
-                        AssetManager::getHeight(forceAsset) * 1.5f),
-                    enemy.width * 2, enemy.height * 2, 0, 0)) {
+        
+        const GameplayAsset forceAsset = forceOpt->level == 1 ? FORCE1 : FORCE2;
+        int fWidth = static_cast<int>(AssetManager::getWidth(forceAsset) * 1.5f);
+        int fHeight = static_cast<int>(AssetManager::getHeight(forceAsset) * 1.5f);
+        
+        int pMinX = forcePosOpt->x / CELL_SIZE;
+        int pMaxX = (forcePosOpt->x + fWidth) / CELL_SIZE;
+        int pMinY = forcePosOpt->y / CELL_SIZE;
+        int pMaxY = (forcePosOpt->y + fHeight) / CELL_SIZE;
+        
+        if (pMaxX - pMinX > 10) pMaxX = pMinX + 10;
+        if (pMaxY - pMinY > 10) pMaxY = pMinY + 10;
+        
+        static vector<Entity> alreadyChecked;
+        alreadyChecked.clear();
+        
+        for (int x = pMinX; x <= pMaxX; ++x) {
+            for (int y = pMinY; y <= pMaxY; ++y) {
+                int hash = x + y * 1000;
+                if (!spatialGrid.contains(hash)) continue;
+                for (auto &[enemyEntity, enemy] : spatialGrid[hash]) {
+                    if (ranges::find(alreadyChecked, enemyEntity) != alreadyChecked.end()) continue;
+                    alreadyChecked.push_back(enemyEntity);
+                    if (!registry.isEntityAlive(enemyEntity)) continue;
+                    auto &enemyPosOpt = registry.getComponent<Position>(enemyEntity);
+                    if (!enemyPosOpt.has_value()) continue;
+                    if (ranges::find(force.hitObstacles, enemyEntity) != force.hitObstacles.end()) continue;
 
-                auto &enemyHealthOpt
-                    = registry.getComponent<Health>(enemyEntity);
-                if (enemyHealthOpt.has_value()) {
-                    enemyHealthOpt->lives -= force.power;
-                    if (enemyHealthOpt->lives <= 0) {
-                        addToScore(100);
-                        playerEvents.emplace_back(
-                            Event::SCORE_UPDATE, globalScore);
-                        playerEvents.emplace_back(Event::DESTROY,
-                            static_cast<unsigned int>(enemyEntity));
-                        registry.killEntity(enemyEntity);
+                    if (checkCollisionWithObstacle(forcePosOpt.value(),
+                            enemyPosOpt.value(),
+                            fWidth,
+                            fHeight,
+                            enemy.width * 2, enemy.height * 2, 0, 0)) {
+
+                        auto &enemyHealthOpt
+                            = registry.getComponent<Health>(enemyEntity);
+                        if (enemyHealthOpt.has_value()) {
+                            enemyHealthOpt->lives -= force.power;
+                            if (enemyHealthOpt->lives <= 0) {
+                                addToScore(100);
+                                playerEvents.emplace_back(
+                                    Event::SCORE_UPDATE, globalScore);
+                                playerEvents.emplace_back(Event::DESTROY,
+                                    static_cast<unsigned int>(enemyEntity));
+                                registry.killEntity(enemyEntity);
+                            }
+                        }
+                        force.hitObstacles.emplace_back(enemyEntity);
                     }
                 }
-                force.hitObstacles.emplace_back(enemyEntity);
             }
         }
     }
@@ -750,59 +790,82 @@ void GameEngine::systemPositionProjectile(Registry &registry,
             = AssetManager::getHeight(projectileAsset) * 2;
         const int power = projectile->isCharged ? (projectile->power * 2)
                                                 : projectile->power;
-        for (const auto &[obstacleEntity, obstacle] : colliderEntities) {
-            if (!registry.isEntityAlive(obstacleEntity)) {
-                continue;
-            }
-            if (ranges::find(projectile->hitObstacles, obstacleEntity)
-                != projectile->hitObstacles.end()) {
-                continue;
-            }
-            auto &obstaclePosOpt
-                = registry.getComponent<Position>(obstacleEntity);
-            if (!obstaclePosOpt.has_value()) {
-                continue;
-            }
-            if (checkCollisionWithObstacle(projectilePos,
-                    obstaclePosOpt.value(), projectileWidth, projectileHeight,
-                    obstacle.width * 2, obstacle.height * 2, 0, 0)) {
-                projectile->hitObstacles.emplace_back(obstacleEntity);
+                                                
+        int pMinX = projectilePos.x / CELL_SIZE;
+        int pMaxX = (projectilePos.x + projectileWidth) / CELL_SIZE;
+        int pMinY = projectilePos.y / CELL_SIZE;
+        int pMaxY = (projectilePos.y + projectileHeight) / CELL_SIZE;
+        
+        if (pMaxX - pMinX > 10) pMaxX = pMinX + 10;
+        if (pMaxY - pMinY > 10) pMaxY = pMinY + 10;
+        
+        static vector<Entity> alreadyCheckedProj;
+        alreadyCheckedProj.clear();
+        bool hit = false;
+        
+        for (int x = pMinX; x <= pMaxX && !hit; ++x) {
+            for (int y = pMinY; y <= pMaxY && !hit; ++y) {
+                int hash = x + y * 1000;
+                if (!spatialGrid.contains(hash)) continue;
+                for (auto &[obstacleEntity, obstacle] : spatialGrid[hash]) {
+                    if (ranges::find(alreadyCheckedProj, obstacleEntity) != alreadyCheckedProj.end()) continue;
+                    alreadyCheckedProj.push_back(obstacleEntity);
+                    if (!registry.isEntityAlive(obstacleEntity)) continue;
+                    if (ranges::find(projectile->hitObstacles, obstacleEntity)
+                        != projectile->hitObstacles.end()) {
+                        continue;
+                    }
+                    auto &obstaclePosOpt
+                        = registry.getComponent<Position>(obstacleEntity);
+                    if (!obstaclePosOpt.has_value()) {
+                        continue;
+                    }
+                    if (checkCollisionWithObstacle(projectilePos,
+                            obstaclePosOpt.value(), projectileWidth, projectileHeight,
+                            obstacle.width * 2, obstacle.height * 2, 0, 0)) {
+                        projectile->hitObstacles.emplace_back(obstacleEntity);
 
-                auto &obstacleHealthOpt
-                    = registry.getComponent<Health>(obstacleEntity);
-                if (!obstacleHealthOpt.has_value()) {
-                    playerEvents.emplace_back(Event::DESTROY,
-                        static_cast<unsigned int>(projectileEntity));
-                    registry.killEntity(projectileEntity);
-                    break;
-                }
-                obstacleHealthOpt->lives -= power;
-                if (obstacleHealthOpt->lives <= 0) {
-                    if (registry.getComponent<Enemy>(obstacleEntity)
-                            .has_value()) {
-                        addToScore(100);
-                        registry.emplaceComponent<Respawn>(obstacleEntity,
-                            steady_clock::now() + milliseconds(64 * 4));
-                        registry.removeComponent<Controllable>(obstacleEntity);
-                        registry.emplaceComponent<Animation>(
-                            obstacleEntity, 64, 0, 4, ENEMY_DEATH);
-                        if (registry.getComponent<Boss1>(obstacleEntity)
-                                .has_value()) {
-                            boss1Defeated = true;
+                        auto &obstacleHealthOpt
+                            = registry.getComponent<Health>(obstacleEntity);
+                        if (!obstacleHealthOpt.has_value()) {
+                            playerEvents.emplace_back(Event::DESTROY,
+                                static_cast<unsigned int>(projectileEntity));
+                            registry.killEntity(projectileEntity);
+                            hit = true;
+                            break;
                         }
-                    } else {
-                        playerEvents.emplace_back(Event::DESTROY,
-                            static_cast<unsigned int>(obstacleEntity));
-                        registry.killEntity(obstacleEntity);
+                        obstacleHealthOpt->lives -= power;
+                        if (obstacleHealthOpt->lives <= 0) {
+                            if (registry.getComponent<Enemy>(obstacleEntity)
+                                    .has_value()) {
+                                addToScore(100);
+                                registry.emplaceComponent<Respawn>(obstacleEntity,
+                                    steady_clock::now() + milliseconds(64 * 4));
+                                registry.removeComponent<Controllable>(obstacleEntity);
+                                registry.emplaceComponent<Animation>(
+                                    obstacleEntity, 64, 0, 4, ENEMY_DEATH);
+                                if (registry.getComponent<Boss1>(obstacleEntity)
+                                        .has_value()) {
+                                    boss1Defeated = true;
+                                }
+                            } else {
+                                playerEvents.emplace_back(Event::DESTROY,
+                                    static_cast<unsigned int>(obstacleEntity));
+                                registry.killEntity(obstacleEntity);
+                            }
+                        }
+                        
+                        if (!projectile->isCharged) {
+                            playerEvents.emplace_back(Event::DESTROY,
+                                static_cast<unsigned int>(projectileEntity));
+                            registry.killEntity(projectileEntity);
+                            hit = true;
+                            break;
+                        }
                     }
                 }
-                if (!projectile->isCharged) {
-                    playerEvents.emplace_back(Event::DESTROY,
-                        static_cast<unsigned int>(projectileEntity));
-                    registry.killEntity(projectileEntity);
-                    break;
-                }
             }
+            if (hit) break;
         }
     }
 }
