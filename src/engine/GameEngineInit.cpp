@@ -69,6 +69,8 @@ GameEngine::GameEngine(
 
     registry.addSystem<Boss1, Position>(
         bind_front(&GameEngine::systemBoss1Position, this));
+    registry.addSystem<Boss1, Position>(
+        bind_front(&GameEngine::systemBossMovement, this));
 
     registry.addSystem<Boss2, Turret, Controllable, Position>(
         bind_front(&GameEngine::updateBoss2Position, this));
@@ -409,13 +411,6 @@ void GameEngine::systemPositionControllable(Registry &registry,
                     * 2.0f)) {
                 playerEvents.emplace_back(Event::DESTROY, entityId);
                 registry.killEntity(entityId);
-                const auto obstacleIt = ranges::find_if(
-                    currentObstacles, [entityId](const auto &obstacle) {
-                        return obstacle.id == entityId;
-                    });
-                if (obstacleIt != currentObstacles.end()) {
-                    currentObstacles.erase(obstacleIt);
-                }
                 continue;
             }
         }
@@ -1103,6 +1098,26 @@ void GameEngine::systemMob1Position(Registry &registry,
                 static_cast<int>(projectilePosY), 2.0f, 2.0f,
                 static_cast<unsigned int>(*projectileEntity), 0 });
         mob->lastShootTime = currentTime;
+    }
+}
+
+void GameEngine::systemBossMovement(Registry &registry,
+    SparseArray<Boss1> &bosses, SparseArray<Position> &positions)
+{
+    const float currentTime = getElapsedTime();
+    const size_t systemSize = min(bosses.size(), positions.size());
+    for (size_t i = 0; i < systemSize; ++i) {
+        auto &boss = bosses[i];
+        auto &pos = positions[i];
+        if ((!boss.has_value()) || (!pos.has_value())) {
+            continue;
+        }
+        // Boss moves up and down based on a sine wave
+        // Base height is WINDOW_HEIGHT / 2
+        float baseHeight = ::WINDOW_HEIGHT / 2.0f;
+        float amplitude = 200.0f;
+        float frequency = 1.5f;
+        pos->y = static_cast<int>(baseHeight + sin(currentTime * frequency) * amplitude);
     }
 }
 

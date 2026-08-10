@@ -103,6 +103,8 @@ public:
 
     void systemBoss1Position(Registry &registry, SparseArray<Boss1> &boss1,
         SparseArray<Position> &positions);
+    void systemBossMovement(Registry &registry, SparseArray<Boss1> &bosses,
+        SparseArray<Position> &positions);
 
     void updateBoss2Position(const Registry &registry,
         SparseArray<Boss2> &boss, SparseArray<Turret> &turrets,
@@ -127,7 +129,6 @@ public:
 
     [[nodiscard]] unsigned char getLevel() const { return currentLevel; }
 
-    [[nodiscard]] vector<Sprite> &getObstacles() { return obstacles; }
 
     [[nodiscard]] vector<Sprite> &getCurrentObstacles()
     {
@@ -192,7 +193,6 @@ private:
     steady_clock::time_point startTime = steady_clock::now();
     unsigned char currentLevel = 1;
     float elapsedTimeLevel = 0.0f;
-    vector<Sprite> obstacles;
     vector<Sprite> currentObstacles;
     bool isBossFight = false;
     bool boss1Defeated = false;

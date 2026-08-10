@@ -463,13 +463,7 @@ void Server::sendEntityStates()
     handlePendingJoinEvents();
     handlePendingForceEvents();
 
-    if (!gameEngine.getObstacles().empty()) {
-        for (const auto &mob : gameEngine.getObstacles()) {
-            logEvent("[GAME ENGINE] Mob " + std::to_string(mob.id) + " has appeared at (" + 
-                     std::to_string(mob.x) + ", " + std::to_string(mob.y) + ").");
-        }
-        gameEngine.getObstacles().clear();
-    }
+
     
     if (!gameEngine.getCurrentSprites().empty()) {
         std::vector<Sprite> deltaSprites;
@@ -666,7 +660,7 @@ void Server::processClientConnections()
                     cout << "New spectator connected: " << senderEndpoint << "\n";
                     network.getSpectators().push_back(senderEndpoint);
                     network.sendTo(BinaryProtocol::serializeSpriteList(
-                                       gameEngine.getCurrentObstacles()),
+                                       gameEngine.getCurrentSprites()),
                         senderEndpoint);
                     return;
                 }
@@ -745,9 +739,9 @@ void Server::processClientConnections()
                 const auto levelBuffer
                     = BinaryProtocol::serializePlayerEventLevel(levelEvent);
                 network.sendTo(levelBuffer, senderEndpoint);
-                if (!gameEngine.getCurrentObstacles().empty()) {
+                if (!gameEngine.getCurrentSprites().empty()) {
                     network.sendTo(BinaryProtocol::serializeSpriteList(
-                                       gameEngine.getCurrentObstacles()),
+                                       gameEngine.getCurrentSprites()),
                         senderEndpoint);
                 }
                 return; // finished processing JOIN

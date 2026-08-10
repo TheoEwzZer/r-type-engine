@@ -50,13 +50,10 @@ void GameEngine::initializeObstacles()
             *obstacleEntity, width, height, 2.0f, 2.0f);
         registry.emplaceComponent<Controllable>(
             *obstacleEntity, false, false, true, false, 1 * currentLevel);
-        obstacles.emplace_back(AssetManager::getSpriteSheetId(obstacleAsset),
-            rectX, rectY, width, height, x, ::WINDOW_HEIGHT - (height * 2), 2,
-            2, static_cast<unsigned int>(*obstacleEntity), 0);
-        currentObstacles.emplace_back(
-            AssetManager::getSpriteSheetId(obstacleAsset), rectX, rectY, width,
-            height, x, ::WINDOW_HEIGHT - (height * 2), 2.0f, 2.0f,
-            static_cast<unsigned int>(*obstacleEntity), 0);
+        registry.emplaceComponent<Drawable>(*obstacleEntity,
+            Sprite { AssetManager::getSpriteSheetId(obstacleAsset),
+                rectX, rectY, width, height, x, ::WINDOW_HEIGHT - (height * 2), 2,
+                2, static_cast<unsigned int>(*obstacleEntity), 0 });
 
         currentX += xSpacingDist(gen);
     }
@@ -173,7 +170,8 @@ void GameEngine::spawnSpeedPowerUp()
 {
     const auto powerUpEntity = make_shared<Entity>(registry.spawnEntity());
 
-    const int posY = ::WINDOW_HEIGHT / 2;
+    uniform_int_distribution yPositionDist(100, ::WINDOW_HEIGHT - 100);
+    const int posY = yPositionDist(gen);
 
     registry.emplaceComponent<Position>(*powerUpEntity, ::WINDOW_WIDTH, posY);
     registry.emplaceComponent<SpeedBoost>(*powerUpEntity);
@@ -381,16 +379,26 @@ void GameEngine::generateEnemies()
 
 void GameEngine::generateEnemy1()
 {
-    const int spacingX = 50;
+    const int spacingX = 60;
     uniform_int_distribution yPositionDist(300, ::WINDOW_HEIGHT - 300);
+    uniform_int_distribution formationDist(0, 2);
+    
     const int initialY = yPositionDist(gen);
+    const int formation = formationDist(gen);
 
     for (int i = 0; i < 5; ++i) {
-        const int initialX = ::WINDOW_WIDTH + (i * spacingX);
+        int initialX = ::WINDOW_WIDTH + (i * spacingX);
+        int currentY = initialY;
+
+        if (formation == 1) { // V-Formation
+            currentY = initialY + abs(i - 2) * 50;
+        } else if (formation == 2) { // Diagonal
+            currentY = initialY + (i * 40);
+        }
 
         const auto enemyEntity = make_shared<Entity>(registry.spawnEntity());
 
-        registry.emplaceComponent<Position>(*enemyEntity, initialX, initialY);
+        registry.emplaceComponent<Position>(*enemyEntity, initialX, currentY);
         registry.emplaceComponent<Collider>(*enemyEntity,
             AssetManager::getWidth(MOB1), AssetManager::getHeight(MOB1), 2.0f,
             2.0f);
@@ -404,7 +412,7 @@ void GameEngine::generateEnemy1()
             Sprite { AssetManager::getSpriteSheetId(MOB1),
                 AssetManager::getRectX(MOB1), AssetManager::getRectY(MOB1),
                 AssetManager::getWidth(MOB1), AssetManager::getHeight(MOB1),
-                initialX, initialY, 2.0f, 2.0f,
+                initialX, currentY, 2.0f, 2.0f,
                 static_cast<unsigned int>(*enemyEntity), 0 });
     }
 }
@@ -436,90 +444,94 @@ void GameEngine::generateEnemy2()
 void GameEngine::generateObstacles()
 {
     static float obstacleSpawnTimer = 0.0f;
-    static float obstacleSpawnInterval = 2.0f;
+    static float obstacleSpawnInterval = 1.5f;
     obstacleSpawnTimer += PHYSICS_INTERVAL;
 
     if (obstacleSpawnTimer >= obstacleSpawnInterval) {
         obstacleSpawnTimer = 0.0f;
-        uniform_real_distribution<float> intervalDist(2.0f, 10.0f);
+        uniform_real_distribution<float> intervalDist(1.5f, 3.5f);
         obstacleSpawnInterval = intervalDist(gen);
-        const auto obstacleEntity
-            = make_shared<Entity>(registry.spawnEntity());
-        GameplayAsset obstacleAsset = OBSTACLE_LARGE;
+        
         uniform_int_distribution obstacleTypeDist(0, 2);
+        GameplayAsset obstacleAsset = OBSTACLE_LARGE;
+        
         if (currentLevel == 1) {
             switch (obstacleTypeDist(gen)) {
-                case 0:
-                    obstacleAsset = OBSTACLE_SMALL;
-                    break;
-                case 1:
-                    obstacleAsset = OBSTACLE_MEDIUM;
-                    break;
-                default:
-                    obstacleAsset = OBSTACLE_LARGE;
-                    break;
+                case 0: obstacleAsset = OBSTACLE_SMALL; break;
+                case 1: obstacleAsset = OBSTACLE_MEDIUM; break;
+                default: obstacleAsset = OBSTACLE_LARGE; break;
             }
         } else {
             switch (obstacleTypeDist(gen)) {
-                case 0:
-                    obstacleAsset = OBSTACLE_SMALL2;
-                    break;
-                case 1:
-                    obstacleAsset = OBSTACLE_MEDIUM2;
-                    break;
-                default:
-                    obstacleAsset = OBSTACLE_LARGE2;
-                    break;
+                case 0: obstacleAsset = OBSTACLE_SMALL2; break;
+                case 1: obstacleAsset = OBSTACLE_MEDIUM2; break;
+                default: obstacleAsset = OBSTACLE_LARGE2; break;
             }
         }
+        
         const unsigned short width = AssetManager::getWidth(obstacleAsset);
         const unsigned short height = AssetManager::getHeight(obstacleAsset);
         const int x = ::WINDOW_WIDTH;
-        int y = ::WINDOW_HEIGHT - (height * 2);
-        if (currentLevel != 1) {
-            y -= 24;
-        }
-        registry.emplaceComponent<Position>(*obstacleEntity, x, y);
-        registry.emplaceComponent<Collider>(
-            *obstacleEntity, width, height, 2.0f, 2.0f);
-        registry.emplaceComponent<Controllable>(
-            *obstacleEntity, false, false, true, false, 1 * currentLevel);
-        obstacles.emplace_back(AssetManager::getSpriteSheetId(obstacleAsset),
-            AssetManager::getRectX(obstacleAsset),
-            AssetManager::getRectY(obstacleAsset), width, height, x,
-            ::WINDOW_HEIGHT - (height * 2), 2.0f, 2.0f,
-            static_cast<unsigned int>(*obstacleEntity), 0);
-        currentObstacles.emplace_back(
-            AssetManager::getSpriteSheetId(obstacleAsset),
-            AssetManager::getRectX(obstacleAsset),
-            AssetManager::getRectY(obstacleAsset), width, height, x,
-            ::WINDOW_HEIGHT - (height * 2), 2.0f, 2.0f,
-            static_cast<unsigned int>(*obstacleEntity), 0);
 
+        uniform_int_distribution patternDist(0, 3);
+        int pattern = patternDist(gen);
+        
         if (currentLevel == 1) {
-            return;
+            pattern = 0; // Level 1 is simple, only bottom obstacles
+        }
+        
+        int bottomY = ::WINDOW_HEIGHT - (height * 2);
+        int topY = 24;
+        if (currentLevel != 1) {
+            bottomY -= 24;
         }
 
-        const auto ceilingObstacleEntity
-            = make_shared<Entity>(registry.spawnEntity());
-        registry.emplaceComponent<Position>(*ceilingObstacleEntity, x, 24);
-        registry.emplaceComponent<Collider>(
-            *ceilingObstacleEntity, width, height, 2.0f, 2.0f);
-        registry.emplaceComponent<Controllable>(*ceilingObstacleEntity, false,
-            false, true, false, 1 * currentLevel);
-        obstacles.emplace_back(AssetManager::getSpriteSheetId(obstacleAsset),
-            AssetManager::getRectX(obstacleAsset),
-            static_cast<unsigned short>(
-                AssetManager::getRectY(obstacleAsset) - height),
-            width, height, x, 24, 2.0f, 2.0f,
-            static_cast<unsigned int>(*ceilingObstacleEntity), 0);
-        currentObstacles.emplace_back(
-            AssetManager::getSpriteSheetId(obstacleAsset),
-            AssetManager::getRectX(obstacleAsset),
-            static_cast<unsigned short>(
-                AssetManager::getRectY(obstacleAsset) - height),
-            width, height, x, 24, 2.0f, 2.0f,
-            static_cast<unsigned int>(*ceilingObstacleEntity), 0);
+        // Procedural Patterns
+        bool spawnBottom = true;
+        bool spawnTop = false;
+
+        if (pattern == 1) { // Corridor
+            spawnBottom = true;
+            spawnTop = true;
+        } else if (pattern == 2) { // Top only
+            spawnBottom = false;
+            spawnTop = true;
+        } else if (pattern == 3) { // Alternating staggered gap
+            spawnBottom = true;
+            spawnTop = true;
+            bottomY += 50; // shift bottom down
+            topY -= 50; // shift top up
+        }
+
+        if (spawnBottom) {
+            const auto obstacleEntity = make_shared<Entity>(registry.spawnEntity());
+            registry.emplaceComponent<Position>(*obstacleEntity, x, bottomY);
+            registry.emplaceComponent<Collider>(
+                *obstacleEntity, width, height, 2.0f, 2.0f);
+            registry.emplaceComponent<Controllable>(
+                *obstacleEntity, false, false, true, false, 1 * currentLevel);
+            registry.emplaceComponent<Drawable>(*obstacleEntity,
+                Sprite { AssetManager::getSpriteSheetId(obstacleAsset),
+                    AssetManager::getRectX(obstacleAsset),
+                    AssetManager::getRectY(obstacleAsset), width, height, x,
+                    bottomY, 2.0f, 2.0f,
+                    static_cast<unsigned int>(*obstacleEntity), 0 });
+        }
+
+        if (spawnTop) {
+            const auto ceilingObstacleEntity = make_shared<Entity>(registry.spawnEntity());
+            registry.emplaceComponent<Position>(*ceilingObstacleEntity, x, topY);
+            registry.emplaceComponent<Collider>(
+                *ceilingObstacleEntity, width, height, 2.0f, 2.0f);
+            registry.emplaceComponent<Controllable>(*ceilingObstacleEntity, false,
+                false, true, false, 1 * currentLevel);
+            registry.emplaceComponent<Drawable>(*ceilingObstacleEntity,
+                Sprite { AssetManager::getSpriteSheetId(obstacleAsset),
+                    AssetManager::getRectX(obstacleAsset),
+                    static_cast<unsigned short>(AssetManager::getRectY(obstacleAsset) - height),
+                    width, height, x, topY, 2.0f, 2.0f,
+                    static_cast<unsigned int>(*ceilingObstacleEntity), 0 });
+        }
     }
 }
 
