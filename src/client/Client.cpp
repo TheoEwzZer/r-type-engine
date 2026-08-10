@@ -375,6 +375,7 @@ void Client::handleSocketReceive()
                 for (const auto &sprite : receivedSprite) {
                     if (!sprites.contains(sprite.id)) {
                         sprites[sprite.id] = createSprite(sprite);
+                        spriteStates[sprite.id].targetPosition = sprites[sprite.id].getPosition();
                     } else {
                         if (sprites[sprite.id].getTexture()
                             != &textures[sprite.spritesheetIndex]) {
@@ -383,9 +384,12 @@ void Client::handleSocketReceive()
                         }
                         sprites[sprite.id].setTextureRect(sf::IntRect(
                             sprite.x, sprite.y, sprite.width, sprite.height));
-                        sprites[sprite.id].setPosition(
+                        
+                        // Setup interpolation
+                        spriteStates[sprite.id].targetPosition = sf::Vector2f(
                             static_cast<float>(sprite.gameX),
                             static_cast<float>(sprite.gameY));
+                        
                         if (sprite.spritesheetIndex == 8) {
                             sprites[sprite.id].setRotation(
                                 static_cast<float>(sprite.rotation));
@@ -511,8 +515,29 @@ void Client::handleSocketReceive()
     }
 }
 
+void Client::interpolateSprites()
+{
+    for (auto& [id, sprite] : sprites) {
+        if (!spriteStates.contains(id)) continue;
+        auto& state = spriteStates[id];
+        
+        // Exponential smoothing (Lerp): Move a percentage of the way to the target every frame.
+        // This makes movement smooth and naturally handles lag/jitter without freezing.
+        sf::Vector2f currentPos = sprite.getPosition();
+        sf::Vector2f newPos;
+        float smoothingFactor = 0.4f; // 40% towards the target every frame
+        
+        newPos.x = currentPos.x + (state.targetPosition.x - currentPos.x) * smoothingFactor;
+        newPos.y = currentPos.y + (state.targetPosition.y - currentPos.y) * smoothingFactor;
+        
+        sprite.setPosition(newPos);
+    }
+}
+
 void Client::renderWindow()
 {
+    interpolateSprites();
+    
     if (!isBossFight) {
         backgroundSprite1.move(static_cast<float>(-1 * level), 0.0f);
         backgroundSprite2.move(static_cast<float>(-1 * level), 0.0f);

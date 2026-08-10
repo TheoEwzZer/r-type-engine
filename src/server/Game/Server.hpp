@@ -107,7 +107,7 @@ private:
         int retries;
     };
     vector<DeathEventRetry> pendingDeathEvents;
-    const int MAX_DEATH_RETRIES = 3;
+    const int MAX_DEATH_RETRIES = 10;
     void handlePendingDeathEvents();
 
     struct EventRetry {
@@ -121,5 +121,8 @@ private:
 
     vector<EventRetry> pendingForceEvents;
     void handlePendingForceEvents();
+
+    uint32_t nextPacketId = 1;
+    void handleAck(const vector<unsigned char> &data);
 };
 }

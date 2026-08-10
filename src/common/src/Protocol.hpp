@@ -73,7 +73,8 @@ enum class Event : unsigned char {
     BOSS_FIGHT,
     DETACH_ATTACH_FORCE,
     SPECTATOR,
-    SPRITE_UPDATE
+    SPRITE_UPDATE,
+    ACK
 };
 
 enum class Direction : unsigned char { UP, DOWN, LEFT, RIGHT, NONE };
@@ -97,6 +98,12 @@ struct Sprite {
 struct PlayerEvent {
     Event event;
     unsigned int playerId;
+    uint32_t packetId;
+};
+
+struct PacketAck {
+    Event event; // Event::ACK
+    uint32_t packetId;
 };
 
 struct PlayerEventMove {
@@ -108,10 +115,12 @@ struct PlayerEventMove {
 struct PlayerEventLife {
     unsigned int playerId;
     int lives;
+    uint32_t packetId;
 };
 
 struct PlayerEventLevel {
     unsigned char level;
+    uint32_t packetId;
 };
 
 #pragma pack(pop)
@@ -142,6 +151,10 @@ public:
     static vector<unsigned char> serializePlayerEventLevel(
         const PlayerEventLevel &event);
     static PlayerEventLevel deserializePlayerEventLevel(
+        const vector<unsigned char> &buffer);
+    static vector<unsigned char> serializePacketAck(
+        const PacketAck &ack);
+    static PacketAck deserializePacketAck(
         const vector<unsigned char> &buffer);
 };
 }

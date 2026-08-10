@@ -61,6 +61,7 @@ private:
         sf::Clock collisionTimer;
         bool isInCollision = false;
         sf::Color originalColor;
+        sf::Vector2f targetPosition;
     };
 
     map<string, unique_ptr<sf::Music>, less<>> musics;
@@ -74,6 +75,7 @@ private:
         const sf::Sprite &sprite1, const sf::Sprite &sprite2) const;
     void handleCollisions();
     void updateSpriteColors();
+    void interpolateSprites();
     void handleSocketOpen();
     void handleClientIdReception();
     void handlePlayerInput(Direction &dx, Direction &dy);
