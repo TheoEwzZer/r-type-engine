@@ -49,6 +49,15 @@ public:
 
     void updateScore(unsigned int newScore)
     {
+        if (newScore > lastScore) {
+            comboMultiplier++;
+            comboTimer = 2.0f;
+            if (comboMultiplier > 1) {
+                comboText.setString("Combo x" + to_string(comboMultiplier) + "!");
+                comboText.setScale(1.5f, 1.5f); // Pop effect!
+            }
+        }
+        lastScore = newScore;
         clientEngine->updateScore(newScore);
         scoreText.setString("Score " + to_string(newScore));
     }
@@ -123,6 +132,10 @@ private:
     sf::Clock normalShotTimer;
     bool wasEKeyPressed = false;
     sf::Text scoreText;
+    sf::Text comboText;
+    int comboMultiplier = 1;
+    float comboTimer = 0.0f;
+    unsigned int lastScore = 0;
     bool isGameOver = false;
     void showGameOverScreen();
     bool showSoundSprite = false;
@@ -133,11 +146,17 @@ private:
     sf::Text lagText;
     int64_t duration = 0;
     
+    float screenShakeDuration = 0.0f;
+    float screenShakeIntensity = 0.0f;
+    sf::View mainView;
+    void triggerScreenShake(float durationSec, float intensity);
+    
     struct PendingEvent {
         PlayerEvent event;
         steady_clock::time_point lastSent;
     };
     std::vector<PendingEvent> pendingEvents;
+    void spawnExplosionParticles(sf::Vector2f position, int count, sf::Color color);
     uint32_t nextPacketId = 1;
 };
 }

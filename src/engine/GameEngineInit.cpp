@@ -809,7 +809,9 @@ void GameEngine::systemPositionProjectile(Registry &registry,
 
 void GameEngine::addToScore(const unsigned int points)
 {
-    globalScore += points;
+    globalScore += (points * comboMultiplier);
+    comboMultiplier++;
+    comboTimer = 2.0f; // 2 seconds to keep the combo going!
     playerEvents.emplace_back(Event::SCORE_UPDATE, globalScore);
 }
 
@@ -1112,11 +1114,19 @@ void GameEngine::systemBossMovement(Registry &registry,
         if ((!boss.has_value()) || (!pos.has_value())) {
             continue;
         }
-        // Boss moves up and down based on a sine wave
-        // Base height is WINDOW_HEIGHT / 2
-        float baseHeight = ::WINDOW_HEIGHT / 2.0f;
+
         float amplitude = 200.0f;
         float frequency = 1.5f;
+
+        // Boss Phase 2 (Enrage Mode)
+        const auto entityId = static_cast<unsigned int>(i);
+        auto &healthOpt = registry.getComponent<Health>(registry.getEntity(entityId));
+        if (healthOpt.has_value() && healthOpt->lives < 500) {
+            amplitude = 250.0f;
+            frequency = 3.5f; // Bouge beaucoup plus vite
+        }
+
+        float baseHeight = ::WINDOW_HEIGHT / 2.0f;
         pos->y = static_cast<int>(baseHeight + sin(currentTime * frequency) * amplitude);
     }
 }
@@ -1136,7 +1146,16 @@ void GameEngine::systemBoss1Position(Registry &registry,
         if ((!mob.has_value()) || (!pos.has_value())) {
             continue;
         }
-        if ((currentTime - mob->lastShootTime) < mob->shootCooldown) {
+
+        // Boss Phase 2 (Enrage Mode)
+        const auto entityId = static_cast<unsigned int>(i);
+        auto &healthOpt = registry.getComponent<Health>(registry.getEntity(entityId));
+        float currentCooldown = mob->shootCooldown;
+        if (healthOpt.has_value() && healthOpt->lives < 500) {
+            currentCooldown = 0.5f; // Tire 2x plus vite (de base 1.0f)
+        }
+
+        if ((currentTime - mob->lastShootTime) < currentCooldown) {
             continue;
         }
         const unsigned short projectileWidth

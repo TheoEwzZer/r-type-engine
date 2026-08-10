@@ -280,28 +280,27 @@ void Server::handleClientInput(
             logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId) + " fired a projectile.");
             auto &pos = registry.getComponent<Position>(*entity);
             if (pos) {
-                const auto projectile
-                    = make_shared<Entity>(registry.spawnEntity());
-                registry.emplaceComponent<Position>(*projectile,
-                    (pos->x + (AssetManager::getWidth(PLAYER))),
-                    ((pos->y + ((AssetManager::getHeight(PLAYER)) / 2))
-                        - ((AssetManager::getHeight(PLAYER_PROJECTILE)) / 2)));
+                // Base Projectile
+                const auto projectile = make_shared<Entity>(registry.spawnEntity());
+                int startX = pos->x + AssetManager::getWidth(PLAYER);
+                int startY = pos->y + (AssetManager::getHeight(PLAYER) / 2) - (AssetManager::getHeight(PLAYER_PROJECTILE) / 2);
+                
+                registry.emplaceComponent<Position>(*projectile, startX, startY);
+                registry.emplaceComponent<Projectile>(*projectile, 10, false, 1.0f, 0.0f, ProjectileOrigin::PLAYER, player->isForceInFront && player->hasForce);
+                registry.emplaceComponent<Drawable>(*projectile, Sprite { AssetManager::getSpriteSheetId(PLAYER_PROJECTILE), AssetManager::getRectX(PLAYER_PROJECTILE), AssetManager::getRectY(PLAYER_PROJECTILE), AssetManager::getWidth(PLAYER_PROJECTILE), AssetManager::getHeight(PLAYER_PROJECTILE), startX, startY, 2, 2, static_cast<unsigned int>(*projectile), 0 });
 
-                registry.emplaceComponent<Projectile>(*projectile, 10, false,
-                    1.0f, 0.0f, ProjectileOrigin::PLAYER,
-                    player->isForceInFront && player->hasForce);
+                // Spread Shot (Up and Down) if player has Force!
+                if (player->hasForce) {
+                    const auto projUp = make_shared<Entity>(registry.spawnEntity());
+                    registry.emplaceComponent<Position>(*projUp, startX, startY - 10);
+                    registry.emplaceComponent<Projectile>(*projUp, 10, false, 1.0f, -0.3f, ProjectileOrigin::PLAYER, true);
+                    registry.emplaceComponent<Drawable>(*projUp, Sprite { AssetManager::getSpriteSheetId(PLAYER_PROJECTILE), AssetManager::getRectX(PLAYER_PROJECTILE), AssetManager::getRectY(PLAYER_PROJECTILE), AssetManager::getWidth(PLAYER_PROJECTILE), AssetManager::getHeight(PLAYER_PROJECTILE), startX, startY - 10, 2, 2, static_cast<unsigned int>(*projUp), 0 });
 
-                registry.emplaceComponent<Drawable>(*projectile,
-                    Sprite { AssetManager::getSpriteSheetId(PLAYER_PROJECTILE),
-                        AssetManager::getRectX(PLAYER_PROJECTILE),
-                        AssetManager::getRectY(PLAYER_PROJECTILE),
-                        AssetManager::getWidth(PLAYER_PROJECTILE),
-                        AssetManager::getHeight(PLAYER_PROJECTILE),
-                        (pos->x + (AssetManager::getWidth(PLAYER))),
-                        ((pos->y + ((AssetManager::getHeight(PLAYER)) / 2))
-                            - ((AssetManager::getHeight(PLAYER_PROJECTILE))
-                                / 2)),
-                        2, 2, static_cast<unsigned int>(*projectile), 0 });
+                    const auto projDown = make_shared<Entity>(registry.spawnEntity());
+                    registry.emplaceComponent<Position>(*projDown, startX, startY + 10);
+                    registry.emplaceComponent<Projectile>(*projDown, 10, false, 1.0f, 0.3f, ProjectileOrigin::PLAYER, true);
+                    registry.emplaceComponent<Drawable>(*projDown, Sprite { AssetManager::getSpriteSheetId(PLAYER_PROJECTILE), AssetManager::getRectX(PLAYER_PROJECTILE), AssetManager::getRectY(PLAYER_PROJECTILE), AssetManager::getWidth(PLAYER_PROJECTILE), AssetManager::getHeight(PLAYER_PROJECTILE), startX, startY + 10, 2, 2, static_cast<unsigned int>(*projDown), 0 });
+                }
 
                 if (player->hasForce && player->isForceAttached
                     && (!player->isForceInFront)) {

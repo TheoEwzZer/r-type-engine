@@ -63,12 +63,16 @@ void GameEngine::runSystems() { registry.runSystems(); }
 
 void GameEngine::update()
 {
-    const auto currentTime = steady_clock::now();
-    elapsedTime
-        = static_cast<float>(
-              duration_cast<milliseconds>(currentTime - startTime).count())
-        / 1000.0f;
+    elapsedTime = duration_cast<milliseconds>(steady_clock::now() - startTime).count() / 1000.0f;
     elapsedTimeLevel += RENDER_INTERVAL;
+
+    if (comboTimer > 0.0f) {
+        comboTimer -= RENDER_INTERVAL;
+        if (comboTimer <= 0.0f) {
+            comboTimer = 0.0f;
+            comboMultiplier = 1;
+        }
+    }
 
     if ((elapsedTimeLevel >= 10.0f) && (!forceCreated)) {
         const auto force = make_shared<Entity>(registry.spawnEntity());
@@ -365,7 +369,21 @@ void GameEngine::generateEnemies()
 
     if (enemySpawnTimer >= enemySpawnInterval) {
         enemySpawnTimer = 0.0f;
-        uniform_real_distribution<float> intervalDist(5.0f, 10.0f);
+        
+        // Dynamic Difficulty: Plus il y a de joueurs en vie, plus le jeu spawn vite !
+        auto players = registry.getComponents<Player>();
+        int alivePlayers = 0;
+        for (size_t i = 0; i < players.size(); ++i) {
+            if (players[i].has_value() && registry.isEntityAlive(registry.getEntity(static_cast<unsigned int>(i)))) {
+                alivePlayers++;
+            }
+        }
+        if (alivePlayers == 0) alivePlayers = 1;
+        
+        float baseMin = 5.0f / alivePlayers;
+        float baseMax = 10.0f / alivePlayers;
+        
+        uniform_real_distribution<float> intervalDist(baseMin, baseMax);
         uniform_int_distribution enemyTypeDist(0, 1);
         enemySpawnInterval = intervalDist(gen);
         const int enemyType = enemyTypeDist(gen);

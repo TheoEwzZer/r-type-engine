@@ -203,6 +203,8 @@ private:
     mt19937 gen;
     bool forceCreated = false;
     unsigned int globalScore = 0;
+    float comboTimer = 0.0f;
+    unsigned int comboMultiplier = 1;
     float renderAccumulator = 0.0f;
     float physicsAccumulator = 0.0f;
     steady_clock::time_point lastFrameTime;

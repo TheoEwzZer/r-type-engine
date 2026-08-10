@@ -57,6 +57,21 @@ Client::Client(sf::RenderWindow &window, InputManager &inputManager,
     lagText.setFillColor(sf::Color::White);
     lagText.setPosition(10, 40);
     lagText.setString("Lag: 0 ms");
+    
+    comboText.setFont(font);
+    comboText.setCharacterSize(28);
+    comboText.setFillColor(sf::Color(255, 200, 0, 255));
+    comboText.setStyle(sf::Text::Bold);
+    comboText.setPosition(window.getSize().x - 250, 45);
+    comboText.setString("");
+
+    mainView = window.getDefaultView();
+}
+
+void Client::triggerScreenShake(float durationSec, float intensity)
+{
+    screenShakeDuration = durationSec;
+    screenShakeIntensity = intensity;
 }
 
 void Client::showGameOverScreen()
@@ -169,6 +184,27 @@ void Client::updateParticles()
     }
 }
 
+void Client::spawnExplosionParticles(sf::Vector2f position, int count, sf::Color color)
+{
+    random_device rd;
+    mt19937 gen(rd());
+    uniform_real_distribution<float> distVelocity(-3.0f, 3.0f);
+    uniform_int_distribution<int> distLifespan(20, 60);
+    uniform_real_distribution<float> distSize(2.0f, 8.0f);
+
+    for (int i = 0; i < count; ++i) {
+        Particle particle;
+        float size = distSize(gen);
+        particle.shape.setSize(sf::Vector2f(size, size));
+        particle.shape.setFillColor(color);
+        particle.shape.setPosition(position);
+        particle.velocity = sf::Vector2f(distVelocity(gen), distVelocity(gen));
+        particle.lifespan = distLifespan(gen);
+        particle.initialSize = size;
+        particles.emplace_back(particle);
+    }
+}
+
 void Client::renderParticles()
 {
     for (const auto &particle : particles) {
@@ -253,6 +289,7 @@ void Client::handlePlayerInput(Direction &dx, Direction &dy)
                 steady_clock::now() - chargeStartTime)
                                             .count();
             if (chargeDuration >= 500) {
+                triggerScreenShake(0.1f, 1.5f);
                 fireProjectile(Event::CHARGED_SHOOT);
             } else {
                 fireProjectile(Event::SHOOT);
@@ -272,6 +309,7 @@ void Client::handlePlayerInput(Direction &dx, Direction &dy)
             steady_clock::now() - chargeStartTime)
                                         .count();
         if (chargeDuration >= 500) {
+            triggerScreenShake(0.1f, 1.5f); // Reduced intensity
             fireProjectile(Event::CHARGED_SHOOT);
         } else {
             fireProjectile(Event::SHOOT);
@@ -423,6 +461,18 @@ void Client::handleSocketReceive()
                             && (it->second.getPosition().x > 0)
                             && (it->second.getPosition().x < 1128)) {
                             clientEngine->playSound("kill");
+                            
+                            // Screen Shake and Particles
+                            if (sheetIndex == 6) { // Boss Death
+                                triggerScreenShake(1.0f, 6.0f); // Reduced duration and intensity
+                                spawnExplosionParticles(it->second.getPosition(), 200, sf::Color(255, 100, 0, 255)); // Huge explosion
+                            } else if (sheetIndex == 5) { // Mob Death
+                                triggerScreenShake(0.08f, 1.5f); // Reduced duration and intensity
+                                spawnExplosionParticles(it->second.getPosition(), 30, sf::Color(255, 200, 0, 255)); // Medium explosion
+                            }
+                        } else if (sheetIndex == 9) { // Player Death
+                            triggerScreenShake(0.2f, 4.0f); // Reduced duration and intensity
+                            spawnExplosionParticles(it->second.getPosition(), 50, sf::Color(0, 150, 255, 255)); // Blue explosion
                         }
                         sprites.erase(it);
                     }
@@ -528,6 +578,35 @@ void Client::renderWindow()
 {
     interpolateSprites();
     
+    // Combo Logic
+    if (comboTimer > 0.0f) {
+        comboTimer -= 1.0f / 60.0f;
+        // Scale lerp to 1.0f
+        sf::Vector2f currentScale = comboText.getScale();
+        if (currentScale.x > 1.0f) {
+            comboText.setScale(currentScale.x - 0.05f, currentScale.y - 0.05f);
+        }
+        if (comboTimer <= 0.0f) {
+            comboTimer = 0.0f;
+            comboMultiplier = 1;
+            comboText.setString("");
+        }
+    }
+    
+    // Screen Shake Logic
+    if (screenShakeDuration > 0.0f) {
+        float offsetX = (static_cast<float>(rand() % 100) / 100.0f - 0.5f) * 2.0f * screenShakeIntensity;
+        float offsetY = (static_cast<float>(rand() % 100) / 100.0f - 0.5f) * 2.0f * screenShakeIntensity;
+        
+        mainView.setCenter(window.getSize().x / 2.0f + offsetX, window.getSize().y / 2.0f + offsetY);
+        screenShakeDuration -= 1.0f / 60.0f; // assuming 60fps
+        if (screenShakeDuration <= 0.0f) {
+            mainView.setCenter(window.getSize().x / 2.0f, window.getSize().y / 2.0f); // Reset
+            screenShakeDuration = 0.0f;
+        }
+    }
+    window.setView(mainView);
+    
     if (!isBossFight) {
         backgroundSprite1.move(static_cast<float>(-1 * level), 0.0f);
         backgroundSprite2.move(static_cast<float>(-1 * level), 0.0f);
@@ -628,6 +707,9 @@ void Client::renderWindow()
         showSoundSprite = false;
     }
     window.draw(scoreText);
+    if (comboMultiplier > 1) {
+        window.draw(comboText);
+    }
     lagText.setString("Lag " + to_string(duration) + " ms");
     window.draw(lagText);
     window.display();
