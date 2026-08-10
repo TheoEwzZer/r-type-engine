@@ -78,6 +78,8 @@ private:
     EngineConfig config;
     GameEngine gameEngine;
     bool isGameStarted = false;
+    std::map<unsigned int, Sprite> previousSprites;
+    int tickCounter = 0;
 
     vector<jthread> threadPool;
     asio::strand<asio::io_context::executor_type> strand;

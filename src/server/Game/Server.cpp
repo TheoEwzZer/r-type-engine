@@ -118,7 +118,12 @@ void Server::run()
 
             if ((duration > 16) && (!processingGameState.exchange(true))) {
                 enqueueGameTask([this] { processGameLogic(); });
-                enqueueNetworkTask([this] { broadcastStates(); });
+                
+                // Throttle network broadcast to 30 FPS (every 2nd game tick) to optimize bandwidth
+                if (tickCounter % 2 == 0) {
+                    enqueueNetworkTask([this] { broadcastStates(); });
+                }
+                tickCounter++;
 
                 lastUpdate = now;
             }
@@ -467,8 +472,51 @@ void Server::sendEntityStates()
     }
     
     if (!gameEngine.getCurrentSprites().empty()) {
-        network.sendAll(
-            BinaryProtocol::serializeSpriteList(gameEngine.getCurrentSprites()));
+        std::vector<Sprite> deltaSprites;
+        bool forceFullSnapshot = (tickCounter % 60 == 0); // Full snapshot every ~1 sec
+
+        for (const auto &sprite : gameEngine.getCurrentSprites()) {
+            if (forceFullSnapshot) {
+                deltaSprites.push_back(sprite);
+                previousSprites[sprite.id] = sprite;
+            } else {
+                auto it = previousSprites.find(sprite.id);
+                if (it == previousSprites.end() ||
+                    it->second.gameX != sprite.gameX ||
+                    it->second.gameY != sprite.gameY ||
+                    it->second.spritesheetIndex != sprite.spritesheetIndex ||
+                    it->second.rotation != sprite.rotation ||
+                    it->second.x != sprite.x ||
+                    it->second.y != sprite.y ||
+                    it->second.scaleX != sprite.scaleX ||
+                    it->second.scaleY != sprite.scaleY) {
+                    
+                    deltaSprites.push_back(sprite);
+                    previousSprites[sprite.id] = sprite;
+                }
+            }
+        }
+        
+        // Remove destroyed entities from previousSprites
+        for (auto it = previousSprites.begin(); it != previousSprites.end(); ) {
+            bool found = false;
+            for (const auto &sprite : gameEngine.getCurrentSprites()) {
+                if (sprite.id == it->first) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                it = previousSprites.erase(it);
+            } else {
+                ++it;
+            }
+        }
+
+        if (!deltaSprites.empty()) {
+            network.sendAll(
+                BinaryProtocol::serializeSpriteList(deltaSprites));
+        }
     }
     if (!gameEngine.getPlayerLevelEvents().empty()) {
         for (const auto &event : gameEngine.getPlayerLevelEvents()) {
