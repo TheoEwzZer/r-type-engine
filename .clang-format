@@ -1,0 +1,48 @@
+BasedOnStyle: WebKit
+ColumnLimit: 79
+IndentCaseLabels: true
+InsertBraces: true
+InsertNewlineAtEOF: true
+InsertTrailingCommas: None
+IntegerLiteralSeparator:
+  Binary: 4
+  BinaryMinDigits: 6
+  Decimal: 3
+  DecimalMinDigits: 5
+  Hex: 4
+  HexMinDigits: 6
+LineEnding: LF
+MaxEmptyLinesToKeep: 1
+PointerAlignment: Right
+QualifierAlignment: Left
+ReferenceAlignment: Right
+RemoveSemicolon: true
+SeparateDefinitionBlocks: Always
+SortIncludes: CaseSensitive
+SortUsingDeclarations: Lexicographic
+SpaceAfterCStyleCast: false
+SpaceAfterLogicalNot: false
+SpaceAfterTemplateKeyword: true
+SpaceAroundPointerQualifiers: Default
+SpaceBeforeAssignmentOperators: true
+SpaceBeforeCaseColon: false
+SpaceBeforeCpp11BracedList: true
+SpaceBeforeCtorInitializerColon: true
+SpaceBeforeRangeBasedForLoopColon: true
+SpaceBeforeSquareBrackets: false
+SpaceInEmptyBlock: false
+SpacesInAngles: Never
+SpacesInContainerLiterals: false
+SpacesInSquareBrackets: false
+Standard: c++20
+UseTab: Never
+BreakConstructorInitializers: AfterColon
+BreakInheritanceList: AfterComma
+BreakArrays: false
+BreakBeforeBinaryOperators: All
+BreakBeforeBraces: WebKit
+BreakBeforeConceptDeclarations: Always
+BreakBeforeTernaryOperators: true
+BreakStringLiterals: false
+AlignTrailingComments:
+  OverEmptyLines: 1
