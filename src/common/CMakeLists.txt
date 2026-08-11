@@ -17,5 +17,18 @@ if(WIN32)
     target_link_libraries(common PUBLIC ws2_32)
 endif()
 
-find_package(ZLIB REQUIRED)
+find_package(ZLIB)
+if(NOT ZLIB_FOUND)
+    CPMAddPackage(
+        NAME ZLIB
+        GITHUB_REPOSITORY madler/zlib
+        VERSION 1.3.1
+    )
+    if(TARGET zlibstatic)
+        add_library(ZLIB::ZLIB ALIAS zlibstatic)
+    elseif(TARGET zlib)
+        add_library(ZLIB::ZLIB ALIAS zlib)
+    endif()
+endif()
+
 target_link_libraries(common PUBLIC ZLIB::ZLIB)
