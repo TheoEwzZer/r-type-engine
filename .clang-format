@@ -1,25 +1,25 @@
 BasedOnStyle: WebKit
 ColumnLimit: 79
 IndentCaseLabels: true
-InsertBraces: true
-InsertNewlineAtEOF: true
+# InsertBraces: true
+# InsertNewlineAtEOF: true
 InsertTrailingCommas: None
-IntegerLiteralSeparator:
-  Binary: 4
-  BinaryMinDigits: 6
-  Decimal: 3
-  DecimalMinDigits: 5
-  Hex: 4
-  HexMinDigits: 6
-LineEnding: LF
+# IntegerLiteralSeparator:
+#   Binary: 4
+#   BinaryMinDigits: 6
+#   Decimal: 3
+#   DecimalMinDigits: 5
+#   Hex: 4
+#   HexMinDigits: 6
+# LineEnding: LF
 MaxEmptyLinesToKeep: 1
 PointerAlignment: Right
 QualifierAlignment: Left
 ReferenceAlignment: Right
-RemoveSemicolon: true
+# RemoveSemicolon: true
 SeparateDefinitionBlocks: Always
 SortIncludes: CaseSensitive
-SortUsingDeclarations: Lexicographic
+SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
 SpaceAfterLogicalNot: false
 SpaceAfterTemplateKeyword: true
@@ -38,10 +38,10 @@ Standard: c++20
 UseTab: Never
 BreakConstructorInitializers: AfterColon
 BreakInheritanceList: AfterComma
-BreakArrays: false
+# BreakArrays: false
 BreakBeforeBinaryOperators: All
 BreakBeforeBraces: WebKit
-BreakBeforeConceptDeclarations: Always
+# BreakBeforeConceptDeclarations: Always
 BreakBeforeTernaryOperators: true
 BreakStringLiterals: false
 AlignTrailingComments: true

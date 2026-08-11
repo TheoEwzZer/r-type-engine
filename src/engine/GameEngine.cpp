@@ -7,11 +7,10 @@
 
 #define _USE_MATH_DEFINES
 #include "GameEngine.hpp"
-#include <random>
 #include <cmath>
+#include <random>
 
 using namespace rtype;
-
 
 void GameEngine::initializeObstacles()
 {
@@ -51,9 +50,9 @@ void GameEngine::initializeObstacles()
         registry.emplaceComponent<Controllable>(
             *obstacleEntity, false, false, true, false, 1 * currentLevel);
         registry.emplaceComponent<Drawable>(*obstacleEntity,
-            Sprite { AssetManager::getSpriteSheetId(obstacleAsset),
-                rectX, rectY, width, height, x, ::WINDOW_HEIGHT - (height * 2), 2,
-                2, static_cast<unsigned int>(*obstacleEntity), 0 });
+            Sprite { AssetManager::getSpriteSheetId(obstacleAsset), rectX,
+                rectY, width, height, x, ::WINDOW_HEIGHT - (height * 2), 2, 2,
+                static_cast<unsigned int>(*obstacleEntity), 0 });
 
         currentX += xSpacingDist(gen);
     }
@@ -63,7 +62,9 @@ void GameEngine::runSystems() { registry.runSystems(); }
 
 void GameEngine::update()
 {
-    elapsedTime = duration_cast<milliseconds>(steady_clock::now() - startTime).count() / 1000.0f;
+    elapsedTime
+        = duration_cast<milliseconds>(steady_clock::now() - startTime).count()
+        / 1000.0f;
     elapsedTimeLevel += RENDER_INTERVAL;
 
     if (comboTimer > 0.0f) {
@@ -369,20 +370,24 @@ void GameEngine::generateEnemies()
 
     if (enemySpawnTimer >= enemySpawnInterval) {
         enemySpawnTimer = 0.0f;
-        
-        // Dynamic Difficulty: Plus il y a de joueurs en vie, plus le jeu spawn vite !
+
+        // Dynamic Difficulty: Plus il y a de joueurs en vie, plus le jeu spawn
+        // vite !
         auto players = registry.getComponents<Player>();
         int alivePlayers = 0;
         for (size_t i = 0; i < players.size(); ++i) {
-            if (players[i].has_value() && registry.isEntityAlive(registry.getEntity(static_cast<unsigned int>(i)))) {
+            if (players[i].has_value()
+                && registry.isEntityAlive(
+                    registry.getEntity(static_cast<unsigned int>(i)))) {
                 alivePlayers++;
             }
         }
-        if (alivePlayers == 0) alivePlayers = 1;
-        
+        if (alivePlayers == 0)
+            alivePlayers = 1;
+
         float baseMin = 5.0f / alivePlayers;
         float baseMax = 10.0f / alivePlayers;
-        
+
         uniform_real_distribution<float> intervalDist(baseMin, baseMax);
         uniform_int_distribution enemyTypeDist(0, 1);
         enemySpawnInterval = intervalDist(gen);
@@ -400,7 +405,7 @@ void GameEngine::generateEnemy1()
     const int spacingX = 60;
     uniform_int_distribution yPositionDist(300, ::WINDOW_HEIGHT - 300);
     uniform_int_distribution formationDist(0, 2);
-    
+
     const int initialY = yPositionDist(gen);
     const int formation = formationDist(gen);
 
@@ -469,35 +474,47 @@ void GameEngine::generateObstacles()
         obstacleSpawnTimer = 0.0f;
         uniform_real_distribution<float> intervalDist(1.5f, 3.5f);
         obstacleSpawnInterval = intervalDist(gen);
-        
+
         uniform_int_distribution obstacleTypeDist(0, 2);
         GameplayAsset obstacleAsset = OBSTACLE_LARGE;
-        
+
         if (currentLevel == 1) {
             switch (obstacleTypeDist(gen)) {
-                case 0: obstacleAsset = OBSTACLE_SMALL; break;
-                case 1: obstacleAsset = OBSTACLE_MEDIUM; break;
-                default: obstacleAsset = OBSTACLE_LARGE; break;
+                case 0:
+                    obstacleAsset = OBSTACLE_SMALL;
+                    break;
+                case 1:
+                    obstacleAsset = OBSTACLE_MEDIUM;
+                    break;
+                default:
+                    obstacleAsset = OBSTACLE_LARGE;
+                    break;
             }
         } else {
             switch (obstacleTypeDist(gen)) {
-                case 0: obstacleAsset = OBSTACLE_SMALL2; break;
-                case 1: obstacleAsset = OBSTACLE_MEDIUM2; break;
-                default: obstacleAsset = OBSTACLE_LARGE2; break;
+                case 0:
+                    obstacleAsset = OBSTACLE_SMALL2;
+                    break;
+                case 1:
+                    obstacleAsset = OBSTACLE_MEDIUM2;
+                    break;
+                default:
+                    obstacleAsset = OBSTACLE_LARGE2;
+                    break;
             }
         }
-        
+
         const unsigned short width = AssetManager::getWidth(obstacleAsset);
         const unsigned short height = AssetManager::getHeight(obstacleAsset);
         const int x = ::WINDOW_WIDTH;
 
         uniform_int_distribution patternDist(0, 3);
         int pattern = patternDist(gen);
-        
+
         if (currentLevel == 1) {
             pattern = 0; // Level 1 is simple, only bottom obstacles
         }
-        
+
         int bottomY = ::WINDOW_HEIGHT - (height * 2);
         int topY = 24;
         if (currentLevel != 1) {
@@ -518,11 +535,12 @@ void GameEngine::generateObstacles()
             spawnBottom = true;
             spawnTop = true;
             bottomY += 50; // shift bottom down
-            topY -= 50; // shift top up
+            topY -= 50;    // shift top up
         }
 
         if (spawnBottom) {
-            const auto obstacleEntity = make_shared<Entity>(registry.spawnEntity());
+            const auto obstacleEntity
+                = make_shared<Entity>(registry.spawnEntity());
             registry.emplaceComponent<Position>(*obstacleEntity, x, bottomY);
             registry.emplaceComponent<Collider>(
                 *obstacleEntity, width, height, 2.0f, 2.0f);
@@ -537,16 +555,19 @@ void GameEngine::generateObstacles()
         }
 
         if (spawnTop) {
-            const auto ceilingObstacleEntity = make_shared<Entity>(registry.spawnEntity());
-            registry.emplaceComponent<Position>(*ceilingObstacleEntity, x, topY);
+            const auto ceilingObstacleEntity
+                = make_shared<Entity>(registry.spawnEntity());
+            registry.emplaceComponent<Position>(
+                *ceilingObstacleEntity, x, topY);
             registry.emplaceComponent<Collider>(
                 *ceilingObstacleEntity, width, height, 2.0f, 2.0f);
-            registry.emplaceComponent<Controllable>(*ceilingObstacleEntity, false,
-                false, true, false, 1 * currentLevel);
+            registry.emplaceComponent<Controllable>(*ceilingObstacleEntity,
+                false, false, true, false, 1 * currentLevel);
             registry.emplaceComponent<Drawable>(*ceilingObstacleEntity,
                 Sprite { AssetManager::getSpriteSheetId(obstacleAsset),
                     AssetManager::getRectX(obstacleAsset),
-                    static_cast<unsigned short>(AssetManager::getRectY(obstacleAsset) - height),
+                    static_cast<unsigned short>(
+                        AssetManager::getRectY(obstacleAsset) - height),
                     width, height, x, topY, 2.0f, 2.0f,
                     static_cast<unsigned int>(*ceilingObstacleEntity), 0 });
         }
@@ -655,7 +676,8 @@ Position GameEngine::findNearestPlayer(const int x, const int y)
     auto &players = registry.getComponents<Player>();
     auto &positions = registry.getComponents<Position>();
     for (size_t i = 0; i < players.size(); ++i) {
-        if (!players[i].has_value() || !positions[i].has_value()) continue;
+        if (!players[i].has_value() || !positions[i].has_value())
+            continue;
         auto &playerPosOpt = positions[i];
         if (playerPosOpt.has_value()) {
             const int dx = playerPosOpt->x - x;
@@ -745,7 +767,6 @@ void GameEngine::updateBoss1DeathSprite(
     sprite.height = AssetManager::getHeight(BOSS1_DEATH);
     sprite.rotation = 0;
 }
-
 
 void GameEngine::detachForcesFromPlayer(
     Registry &registry, const ecs::Entity playerEntity) const

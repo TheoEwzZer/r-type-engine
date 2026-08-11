@@ -7,10 +7,10 @@
 
 #include "Server.hpp"
 #include <chrono>
-#include <iomanip>
-#include <sstream>
 #include <filesystem>
+#include <iomanip>
 #include <map>
+#include <sstream>
 
 using namespace rtype;
 
@@ -31,8 +31,8 @@ Server::Server(const EngineConfig &config) :
 #endif
 
     std::stringstream ss;
-    ss << "logs/log-game-"
-       << std::put_time(&tm_now, "%d-%m-%Y-%H-%M-%S") << ".log";
+    ss << "logs/log-game-" << std::put_time(&tm_now, "%d-%m-%Y-%H-%M-%S")
+       << ".log";
 
     std::stringstream folderName;
     folderName << "logs_run_" << std::put_time(&tm_now, "%d-%m-%Y-%H-%M-%S");
@@ -118,8 +118,9 @@ void Server::run()
 
             if ((duration > 16) && (!processingGameState.exchange(true))) {
                 enqueueGameTask([this] { processGameLogic(); });
-                
-                // Throttle network broadcast to 30 FPS (every 2nd game tick) to optimize bandwidth
+
+                // Throttle network broadcast to 30 FPS (every 2nd game tick)
+                // to optimize bandwidth
                 if (tickCounter % 2 == 0) {
                     enqueueNetworkTask([this] { broadcastStates(); });
                 }
@@ -218,7 +219,9 @@ void Server::handleClientInputMove(
     const vector<unsigned char> &data, const udp::endpoint &clientEndpoint)
 {
     try {
-        std::unique_ptr<PlayerEventMove> event = std::make_unique<PlayerEventMove>(BinaryProtocol::deserializePlayerEventMove(data));
+        std::unique_ptr<PlayerEventMove> event
+            = std::make_unique<PlayerEventMove>(
+                BinaryProtocol::deserializePlayerEventMove(data));
         if (!network.getClients().contains(clientEndpoint)) {
             cerr << "Client not found: " << clientEndpoint << "\n";
             return;
@@ -228,11 +231,13 @@ void Server::handleClientInputMove(
         if (control) {
             switch (event->dx) {
                 case Direction::LEFT:
-                    logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId) + " goes left.");
+                    logEvent("[GAME ENGINE] Player "
+                        + std::to_string(event->playerId) + " goes left.");
                     control->left = true;
                     break;
                 case Direction::RIGHT:
-                    logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId) + " goes right.");
+                    logEvent("[GAME ENGINE] Player "
+                        + std::to_string(event->playerId) + " goes right.");
                     control->right = true;
                     break;
                 default:
@@ -242,12 +247,14 @@ void Server::handleClientInputMove(
             }
             switch (event->dy) {
                 case Direction::UP:
-                    logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId) + " goes up.");
+                    logEvent("[GAME ENGINE] Player "
+                        + std::to_string(event->playerId) + " goes up.");
                     control->up = true;
                     control->prevUp = true;
                     break;
                 case Direction::DOWN:
-                    logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId) + " goes down.");
+                    logEvent("[GAME ENGINE] Player "
+                        + std::to_string(event->playerId) + " goes down.");
                     control->down = true;
                     control->prevDown = true;
                     break;
@@ -268,7 +275,8 @@ void Server::handleClientInput(
     const vector<unsigned char> &data, const udp::endpoint &clientEndpoint)
 {
     try {
-        unique_ptr<PlayerEvent> event = std::make_unique<PlayerEvent>(BinaryProtocol::deserializePlayerEvent(data));
+        unique_ptr<PlayerEvent> event = std::make_unique<PlayerEvent>(
+            BinaryProtocol::deserializePlayerEvent(data));
         if (!network.getClients().contains(clientEndpoint)) {
             cerr << "Client not found: " << clientEndpoint << "\n";
             return;
@@ -277,29 +285,64 @@ void Server::handleClientInput(
         auto &player = registry.getComponent<Player>(*entity);
 
         if (event->event == Event::SHOOT) {
-            logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId) + " fired a projectile.");
+            logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId)
+                + " fired a projectile.");
             auto &pos = registry.getComponent<Position>(*entity);
             if (pos) {
                 // Base Projectile
-                const auto projectile = make_shared<Entity>(registry.spawnEntity());
+                const auto projectile
+                    = make_shared<Entity>(registry.spawnEntity());
                 int startX = pos->x + AssetManager::getWidth(PLAYER);
-                int startY = pos->y + (AssetManager::getHeight(PLAYER) / 2) - (AssetManager::getHeight(PLAYER_PROJECTILE) / 2);
-                
-                registry.emplaceComponent<Position>(*projectile, startX, startY);
-                registry.emplaceComponent<Projectile>(*projectile, 10, false, 1.0f, 0.0f, ProjectileOrigin::PLAYER, player->isForceInFront && player->hasForce);
-                registry.emplaceComponent<Drawable>(*projectile, Sprite { AssetManager::getSpriteSheetId(PLAYER_PROJECTILE), AssetManager::getRectX(PLAYER_PROJECTILE), AssetManager::getRectY(PLAYER_PROJECTILE), AssetManager::getWidth(PLAYER_PROJECTILE), AssetManager::getHeight(PLAYER_PROJECTILE), startX, startY, 2, 2, static_cast<unsigned int>(*projectile), 0 });
+                int startY = pos->y + (AssetManager::getHeight(PLAYER) / 2)
+                    - (AssetManager::getHeight(PLAYER_PROJECTILE) / 2);
+
+                registry.emplaceComponent<Position>(
+                    *projectile, startX, startY);
+                registry.emplaceComponent<Projectile>(*projectile, 10, false,
+                    1.0f, 0.0f, ProjectileOrigin::PLAYER,
+                    player->isForceInFront && player->hasForce);
+                registry.emplaceComponent<Drawable>(*projectile,
+                    Sprite { AssetManager::getSpriteSheetId(PLAYER_PROJECTILE),
+                        AssetManager::getRectX(PLAYER_PROJECTILE),
+                        AssetManager::getRectY(PLAYER_PROJECTILE),
+                        AssetManager::getWidth(PLAYER_PROJECTILE),
+                        AssetManager::getHeight(PLAYER_PROJECTILE), startX,
+                        startY, 2, 2, static_cast<unsigned int>(*projectile),
+                        0 });
 
                 // Spread Shot (Up and Down) if player has Force!
                 if (player->hasForce) {
-                    const auto projUp = make_shared<Entity>(registry.spawnEntity());
-                    registry.emplaceComponent<Position>(*projUp, startX, startY - 10);
-                    registry.emplaceComponent<Projectile>(*projUp, 10, false, 1.0f, -0.3f, ProjectileOrigin::PLAYER, true);
-                    registry.emplaceComponent<Drawable>(*projUp, Sprite { AssetManager::getSpriteSheetId(PLAYER_PROJECTILE), AssetManager::getRectX(PLAYER_PROJECTILE), AssetManager::getRectY(PLAYER_PROJECTILE), AssetManager::getWidth(PLAYER_PROJECTILE), AssetManager::getHeight(PLAYER_PROJECTILE), startX, startY - 10, 2, 2, static_cast<unsigned int>(*projUp), 0 });
+                    const auto projUp
+                        = make_shared<Entity>(registry.spawnEntity());
+                    registry.emplaceComponent<Position>(
+                        *projUp, startX, startY - 10);
+                    registry.emplaceComponent<Projectile>(*projUp, 10, false,
+                        1.0f, -0.3f, ProjectileOrigin::PLAYER, true);
+                    registry.emplaceComponent<Drawable>(*projUp,
+                        Sprite {
+                            AssetManager::getSpriteSheetId(PLAYER_PROJECTILE),
+                            AssetManager::getRectX(PLAYER_PROJECTILE),
+                            AssetManager::getRectY(PLAYER_PROJECTILE),
+                            AssetManager::getWidth(PLAYER_PROJECTILE),
+                            AssetManager::getHeight(PLAYER_PROJECTILE), startX,
+                            startY - 10, 2, 2,
+                            static_cast<unsigned int>(*projUp), 0 });
 
-                    const auto projDown = make_shared<Entity>(registry.spawnEntity());
-                    registry.emplaceComponent<Position>(*projDown, startX, startY + 10);
-                    registry.emplaceComponent<Projectile>(*projDown, 10, false, 1.0f, 0.3f, ProjectileOrigin::PLAYER, true);
-                    registry.emplaceComponent<Drawable>(*projDown, Sprite { AssetManager::getSpriteSheetId(PLAYER_PROJECTILE), AssetManager::getRectX(PLAYER_PROJECTILE), AssetManager::getRectY(PLAYER_PROJECTILE), AssetManager::getWidth(PLAYER_PROJECTILE), AssetManager::getHeight(PLAYER_PROJECTILE), startX, startY + 10, 2, 2, static_cast<unsigned int>(*projDown), 0 });
+                    const auto projDown
+                        = make_shared<Entity>(registry.spawnEntity());
+                    registry.emplaceComponent<Position>(
+                        *projDown, startX, startY + 10);
+                    registry.emplaceComponent<Projectile>(*projDown, 10, false,
+                        1.0f, 0.3f, ProjectileOrigin::PLAYER, true);
+                    registry.emplaceComponent<Drawable>(*projDown,
+                        Sprite {
+                            AssetManager::getSpriteSheetId(PLAYER_PROJECTILE),
+                            AssetManager::getRectX(PLAYER_PROJECTILE),
+                            AssetManager::getRectY(PLAYER_PROJECTILE),
+                            AssetManager::getWidth(PLAYER_PROJECTILE),
+                            AssetManager::getHeight(PLAYER_PROJECTILE), startX,
+                            startY + 10, 2, 2,
+                            static_cast<unsigned int>(*projDown), 0 });
                 }
 
                 if (player->hasForce && player->isForceAttached
@@ -340,7 +383,8 @@ void Server::handleClientInput(
             }
         }
         if (event->event == Event::CHARGED_SHOOT) {
-            logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId) + " used a charged shot.");
+            logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId)
+                + " used a charged shot.");
             auto &pos = registry.getComponent<Position>(*entity);
             if (pos) {
                 rtype::GameplayAsset projectileAsset
@@ -417,7 +461,8 @@ void Server::handleClientInput(
             }
         }
         if (event->event == Event::DESTROY) {
-            logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId) + " has been destroyed.");
+            logEvent("[GAME ENGINE] Player " + std::to_string(event->playerId)
+                + " has been destroyed.");
             gameEngine.getPlayerEvents().emplace_back(*event);
             registry.killEntity(*entity);
             network.getClients().erase(clientEndpoint);
@@ -426,8 +471,10 @@ void Server::handleClientInput(
         }
         if (event->event == Event::DETACH_ATTACH_FORCE) {
             event->packetId = nextPacketId++;
-            pendingForceEvents.push_back({*event, steady_clock::now(), 0, clientEndpoint});
-            logEvent("[SERVER ENGINE] Force event queued for player " + std::to_string(event->playerId));
+            pendingForceEvents.push_back(
+                { *event, steady_clock::now(), 0, clientEndpoint });
+            logEvent("[SERVER ENGINE] Force event queued for player "
+                + std::to_string(event->playerId));
             auto forceEntities = registry.getEntities<Force>();
             for (const auto &[forceEntity, force] : forceEntities) {
                 if (!registry.isEntityAlive(forceEntity)) {
@@ -462,11 +509,10 @@ void Server::sendEntityStates()
     handlePendingJoinEvents();
     handlePendingForceEvents();
 
-
-    
     if (!gameEngine.getCurrentSprites().empty()) {
         std::vector<Sprite> deltaSprites;
-        bool forceFullSnapshot = (tickCounter % 60 == 0); // Full snapshot every ~1 sec
+        bool forceFullSnapshot
+            = (tickCounter % 60 == 0); // Full snapshot every ~1 sec
 
         for (const auto &sprite : gameEngine.getCurrentSprites()) {
             if (forceFullSnapshot) {
@@ -474,24 +520,23 @@ void Server::sendEntityStates()
                 previousSprites[sprite.id] = sprite;
             } else {
                 auto it = previousSprites.find(sprite.id);
-                if (it == previousSprites.end() ||
-                    it->second.gameX != sprite.gameX ||
-                    it->second.gameY != sprite.gameY ||
-                    it->second.spritesheetIndex != sprite.spritesheetIndex ||
-                    it->second.rotation != sprite.rotation ||
-                    it->second.x != sprite.x ||
-                    it->second.y != sprite.y ||
-                    it->second.scaleX != sprite.scaleX ||
-                    it->second.scaleY != sprite.scaleY) {
-                    
+                if (it == previousSprites.end()
+                    || it->second.gameX != sprite.gameX
+                    || it->second.gameY != sprite.gameY
+                    || it->second.spritesheetIndex != sprite.spritesheetIndex
+                    || it->second.rotation != sprite.rotation
+                    || it->second.x != sprite.x || it->second.y != sprite.y
+                    || it->second.scaleX != sprite.scaleX
+                    || it->second.scaleY != sprite.scaleY) {
+
                     deltaSprites.push_back(sprite);
                     previousSprites[sprite.id] = sprite;
                 }
             }
         }
-        
+
         // Remove destroyed entities from previousSprites
-        for (auto it = previousSprites.begin(); it != previousSprites.end(); ) {
+        for (auto it = previousSprites.begin(); it != previousSprites.end();) {
             bool found = false;
             for (const auto &sprite : gameEngine.getCurrentSprites()) {
                 if (sprite.id == it->first) {
@@ -507,8 +552,7 @@ void Server::sendEntityStates()
         }
 
         if (!deltaSprites.empty()) {
-            network.sendAll(
-                BinaryProtocol::serializeSpriteList(deltaSprites));
+            network.sendAll(BinaryProtocol::serializeSpriteList(deltaSprites));
         }
     }
     if (!gameEngine.getPlayerLevelEvents().empty()) {
@@ -544,10 +588,13 @@ void Server::sendEntityStates()
                 // Ajouter l'événement de mort aux événements en attente
                 PlayerEvent deathEvent = event;
                 deathEvent.packetId = nextPacketId++;
-                pendingDeathEvents.push_back({deathEvent, steady_clock::now(), 0});
-                logEvent("[SERVER ENGINE] Death event queued for player " + std::to_string(event.playerId));
+                pendingDeathEvents.push_back(
+                    { deathEvent, steady_clock::now(), 0 });
+                logEvent("[SERVER ENGINE] Death event queued for player "
+                    + std::to_string(event.playerId));
             } else {
-                const auto buffer = BinaryProtocol::serializePlayerEvent(event);
+                const auto buffer
+                    = BinaryProtocol::serializePlayerEvent(event);
                 network.sendAll(buffer);
             }
         }
@@ -559,24 +606,28 @@ void Server::sendEntityStates()
 void Server::handlePendingDeathEvents()
 {
     const auto now = steady_clock::now();
-    
+
     auto it = pendingDeathEvents.begin();
     while (it != pendingDeathEvents.end()) {
         auto timeDiff = duration_cast<seconds>(now - it->lastSent).count();
-        
-        if (timeDiff >= 4 || it->retries == 0) { // 4 secondes entre chaque tentative
-            const auto buffer = BinaryProtocol::serializePlayerEvent(it->event);
+
+        if (timeDiff >= 4
+            || it->retries == 0) { // 4 secondes entre chaque tentative
+            const auto buffer
+                = BinaryProtocol::serializePlayerEvent(it->event);
             network.sendAll(buffer);
-            
+
             it->lastSent = now;
             it->retries++;
-            
-            logEvent("[SERVER ENGINE] Death event retry " + std::to_string(it->retries) + 
-                     " for player " + std::to_string(it->event.playerId));
+
+            logEvent("[SERVER ENGINE] Death event retry "
+                + std::to_string(it->retries) + " for player "
+                + std::to_string(it->event.playerId));
 
             if (it->retries >= MAX_DEATH_RETRIES) {
-                logEvent("[SERVER ENGINE] Death event max retries reached for player " + 
-                         std::to_string(it->event.playerId));
+                logEvent(
+                    "[SERVER ENGINE] Death event max retries reached for player "
+                    + std::to_string(it->event.playerId));
                 it = pendingDeathEvents.erase(it);
             } else {
                 ++it;
@@ -593,19 +644,22 @@ void Server::handlePendingForceEvents()
     auto it = pendingForceEvents.begin();
     while (it != pendingForceEvents.end()) {
         auto timeDiff = duration_cast<seconds>(now - it->lastSent).count();
-        
+
         if (timeDiff >= 4 || it->retries == 0) {
-            const auto buffer = BinaryProtocol::serializePlayerEvent(it->event);
+            const auto buffer
+                = BinaryProtocol::serializePlayerEvent(it->event);
             network.sendAll(buffer);
             it->lastSent = now;
             it->retries++;
-            
-            logEvent("[SERVER ENGINE] Force event retry " + std::to_string(it->retries) + 
-                    " for player " + std::to_string(it->event.playerId));
+
+            logEvent("[SERVER ENGINE] Force event retry "
+                + std::to_string(it->retries) + " for player "
+                + std::to_string(it->event.playerId));
 
             if (it->retries >= MAX_DEATH_RETRIES) {
-                logEvent("[SERVER ENGINE] Force event max retries reached for player " + 
-                        std::to_string(it->event.playerId));
+                logEvent(
+                    "[SERVER ENGINE] Force event max retries reached for player "
+                    + std::to_string(it->event.playerId));
                 it = pendingForceEvents.erase(it);
             } else {
                 ++it;
@@ -616,18 +670,26 @@ void Server::handlePendingForceEvents()
     }
 }
 
-void Server::handleAck(const vector<unsigned char> &data) {
-    if (data.size() < 5) return;
+void Server::handleAck(const vector<unsigned char> &data)
+{
+    if (data.size() < 5)
+        return;
     PacketAck ack = BinaryProtocol::deserializePacketAck(data);
     uint32_t id = ack.packetId;
-    
-    auto it1 = std::remove_if(pendingJoinEvents.begin(), pendingJoinEvents.end(), [id](const EventRetry &e) { return e.event.packetId == id; });
+
+    auto it1
+        = std::remove_if(pendingJoinEvents.begin(), pendingJoinEvents.end(),
+            [id](const EventRetry &e) { return e.event.packetId == id; });
     pendingJoinEvents.erase(it1, pendingJoinEvents.end());
-    
-    auto it2 = std::remove_if(pendingDeathEvents.begin(), pendingDeathEvents.end(), [id](const DeathEventRetry &e) { return e.event.packetId == id; });
+
+    auto it2
+        = std::remove_if(pendingDeathEvents.begin(), pendingDeathEvents.end(),
+            [id](const DeathEventRetry &e) { return e.event.packetId == id; });
     pendingDeathEvents.erase(it2, pendingDeathEvents.end());
-    
-    auto it3 = std::remove_if(pendingForceEvents.begin(), pendingForceEvents.end(), [id](const EventRetry &e) { return e.event.packetId == id; });
+
+    auto it3
+        = std::remove_if(pendingForceEvents.begin(), pendingForceEvents.end(),
+            [id](const EventRetry &e) { return e.event.packetId == id; });
     pendingForceEvents.erase(it3, pendingForceEvents.end());
 }
 
@@ -644,19 +706,23 @@ void Server::processClientConnections()
 
     if (length > 0) {
         try {
-            if (length == 5 && recvBuffer[0] == static_cast<uint8_t>(Event::ACK)) {
+            if (length == 5
+                && recvBuffer[0] == static_cast<uint8_t>(Event::ACK)) {
                 handleAck(recvBuffer);
                 return;
             }
             if (length == 9) { // PlayerEvent is now 9 bytes (1+4+4)
-                const PlayerEvent event = BinaryProtocol::deserializePlayerEvent(recvBuffer);
-                
+                const PlayerEvent event
+                    = BinaryProtocol::deserializePlayerEvent(recvBuffer);
+
                 // Send ACK back
                 PacketAck ack { Event::ACK, event.packetId };
-                network.sendTo(BinaryProtocol::serializePacketAck(ack), senderEndpoint);
-                
+                network.sendTo(
+                    BinaryProtocol::serializePacketAck(ack), senderEndpoint);
+
                 if (event.event == Event::SPECTATOR) {
-                    cout << "New spectator connected: " << senderEndpoint << "\n";
+                    cout << "New spectator connected: " << senderEndpoint
+                         << "\n";
                     network.getSpectators().push_back(senderEndpoint);
                     network.sendTo(BinaryProtocol::serializeSpriteList(
                                        gameEngine.getCurrentSprites()),
@@ -666,87 +732,97 @@ void Server::processClientConnections()
                 if (!network.getClients().contains(senderEndpoint)
                     && event.event == Event::JOIN) {
                     if (network.getClients().size() >= 4) {
-                        logEvent("[SERVER ENGINE] Maximum number of clients reached.");
+                        logEvent(
+                            "[SERVER ENGINE] Maximum number of clients reached.");
                         return;
                     }
 
-                if (!isGameStarted) {
-                    if (config.enableAI) {
-                        const auto player
-                            = make_shared<Entity>(registry.spawnEntity());
-                        registry.emplaceComponent<Position>(
-                            *player, ::WINDOW_WIDTH / 4, ::WINDOW_HEIGHT / 2);
-                        registry.emplaceComponent<Controllable>(
-                            *player, false, false, false, false, 3);
-                        registry.emplaceComponent<Player>(*player);
-                        registry.emplaceComponent<AI>(*player);
-                        registry.emplaceComponent<Health>(*player, 3);
-                        if (config.enableAnimation) {
-                            registry.emplaceComponent<Animation>(
-                                *player, 64, 0, 8, PLAYER);
+                    if (!isGameStarted) {
+                        if (config.enableAI) {
+                            const auto player
+                                = make_shared<Entity>(registry.spawnEntity());
+                            registry.emplaceComponent<Position>(*player,
+                                ::WINDOW_WIDTH / 4, ::WINDOW_HEIGHT / 2);
+                            registry.emplaceComponent<Controllable>(
+                                *player, false, false, false, false, 3);
+                            registry.emplaceComponent<Player>(*player);
+                            registry.emplaceComponent<AI>(*player);
+                            registry.emplaceComponent<Health>(*player, 3);
+                            if (config.enableAnimation) {
+                                registry.emplaceComponent<Animation>(
+                                    *player, 64, 0, 8, PLAYER);
+                            }
+                            const auto aiId
+                                = static_cast<unsigned int>(*player);
+                            registry.emplaceComponent<Drawable>(*player,
+                                Sprite {
+                                    AssetManager::getSpriteSheetId(PLAYER),
+                                    AssetManager::getRectX(PLAYER),
+                                    static_cast<unsigned short>(3 + (3 * 17)),
+                                    AssetManager::getWidth(PLAYER),
+                                    AssetManager::getHeight(PLAYER),
+                                    ::WINDOW_WIDTH / 4, ::WINDOW_HEIGHT / 2,
+                                    1.5f, 1.5f, aiId, 0 });
                         }
-                        const auto aiId = static_cast<unsigned int>(*player);
-                        registry.emplaceComponent<Drawable>(*player,
-                            Sprite { AssetManager::getSpriteSheetId(PLAYER),
-                                AssetManager::getRectX(PLAYER),
-                                static_cast<unsigned short>(3 + (3 * 17)),
-                                AssetManager::getWidth(PLAYER),
-                                AssetManager::getHeight(PLAYER),
-                                ::WINDOW_WIDTH / 4, ::WINDOW_HEIGHT / 2, 1.5f,
-                                1.5f, aiId, 0 });
+                        isGameStarted = true;
                     }
-                    isGameStarted = true;
+                    const auto player
+                        = make_shared<Entity>(registry.spawnClientEntity());
+                    registry.emplaceComponent<Position>(
+                        *player, ::WINDOW_WIDTH / 4, ::WINDOW_HEIGHT / 2);
+                    registry.emplaceComponent<Controllable>(*player);
+                    registry.emplaceComponent<Player>(*player);
+                    registry.emplaceComponent<Health>(*player, 3);
+                    if (config.enableAnimation) {
+                        registry.emplaceComponent<Animation>(
+                            *player, 64, 0, 8, PLAYER);
+                    }
+                    const auto clientId = static_cast<unsigned int>(*player);
+                    unsigned short skin
+                        = event.playerId == 0 ? clientId : event.playerId;
+                    registry.emplaceComponent<Drawable>(*player,
+                        Sprite { AssetManager::getSpriteSheetId(
+                                     GameplayAsset::PLAYER),
+                            AssetManager::getRectX(GameplayAsset::PLAYER),
+                            static_cast<unsigned short>(3 + (skin * 17)),
+                            AssetManager::getWidth(GameplayAsset::PLAYER),
+                            AssetManager::getHeight(GameplayAsset::PLAYER),
+                            ::WINDOW_WIDTH / 4, ::WINDOW_HEIGHT / 2, 1.5f,
+                            1.5f, clientId, 0 });
+                    network.getClients()[senderEndpoint] = player;
+                    cout << "New client connected: " << senderEndpoint << "\n";
+                    logEvent("[SERVER ENGINE] New client connected: "
+                        + senderEndpoint.address().to_string() + ":"
+                        + std::to_string(senderEndpoint.port()));
+                    logEvent("[SERVER ENGINE] Player "
+                        + std::to_string(clientId) + " connecting from IP "
+                        + senderEndpoint.address().to_string() + ":"
+                        + std::to_string(senderEndpoint.port()));
+                    const PlayerEvent joinEvent { Event::JOIN, clientId,
+                        nextPacketId++ };
+                    pendingJoinEvents.push_back(
+                        { joinEvent, steady_clock::now(), 0, senderEndpoint });
+                    logEvent("[SERVER ENGINE] Join event queued for client "
+                        + std::to_string(clientId));
+                    const auto idBuffer
+                        = BinaryProtocol::serializePlayerEvent(joinEvent);
+                    network.sendTo(idBuffer, senderEndpoint);
+                    const PlayerEventLevel levelEvent {
+                        gameEngine.getLevel()
+                    };
+                    const auto levelBuffer
+                        = BinaryProtocol::serializePlayerEventLevel(
+                            levelEvent);
+                    network.sendTo(levelBuffer, senderEndpoint);
+                    if (!gameEngine.getCurrentSprites().empty()) {
+                        network.sendTo(BinaryProtocol::serializeSpriteList(
+                                           gameEngine.getCurrentSprites()),
+                            senderEndpoint);
+                    }
+                    return; // finished processing JOIN
                 }
-                const auto player
-                    = make_shared<Entity>(registry.spawnClientEntity());
-                registry.emplaceComponent<Position>(
-                    *player, ::WINDOW_WIDTH / 4, ::WINDOW_HEIGHT / 2);
-                registry.emplaceComponent<Controllable>(*player);
-                registry.emplaceComponent<Player>(*player);
-                registry.emplaceComponent<Health>(*player, 3);
-                if (config.enableAnimation) {
-                    registry.emplaceComponent<Animation>(
-                        *player, 64, 0, 8, PLAYER);
-                }
-                const auto clientId = static_cast<unsigned int>(*player);
-                unsigned short skin
-                    = event.playerId == 0 ? clientId : event.playerId;
-                registry.emplaceComponent<Drawable>(*player,
-                    Sprite {
-                        AssetManager::getSpriteSheetId(GameplayAsset::PLAYER),
-                        AssetManager::getRectX(GameplayAsset::PLAYER),
-                        static_cast<unsigned short>(3 + (skin * 17)),
-                        AssetManager::getWidth(GameplayAsset::PLAYER),
-                        AssetManager::getHeight(GameplayAsset::PLAYER),
-                        ::WINDOW_WIDTH / 4, ::WINDOW_HEIGHT / 2, 1.5f, 1.5f,
-                        clientId, 0 });
-                network.getClients()[senderEndpoint] = player;
-                cout << "New client connected: " << senderEndpoint << "\n";
-                logEvent("[SERVER ENGINE] New client connected: " 
-                    + senderEndpoint.address().to_string() + ":"
-                    + std::to_string(senderEndpoint.port()));
-                logEvent("[SERVER ENGINE] Player " + std::to_string(clientId)
-                    + " connecting from IP " + senderEndpoint.address().to_string()
-                    + ":" + std::to_string(senderEndpoint.port()));
-                const PlayerEvent joinEvent { Event::JOIN, clientId, nextPacketId++ };
-                pendingJoinEvents.push_back({joinEvent, steady_clock::now(), 0, senderEndpoint});
-                logEvent("[SERVER ENGINE] Join event queued for client " + std::to_string(clientId));
-                const auto idBuffer
-                    = BinaryProtocol::serializePlayerEvent(joinEvent);
-                network.sendTo(idBuffer, senderEndpoint);
-                const PlayerEventLevel levelEvent { gameEngine.getLevel() };
-                const auto levelBuffer
-                    = BinaryProtocol::serializePlayerEventLevel(levelEvent);
-                network.sendTo(levelBuffer, senderEndpoint);
-                if (!gameEngine.getCurrentSprites().empty()) {
-                    network.sendTo(BinaryProtocol::serializeSpriteList(
-                                       gameEngine.getCurrentSprites()),
-                        senderEndpoint);
-                }
-                return; // finished processing JOIN
-            }
             } // closes if (length == 9)
-            
+
             if (length == 6) {
                 handleClientInputMove(recvBuffer, senderEndpoint);
             } else if (length == 9) {
@@ -763,24 +839,27 @@ void Server::processClientConnections()
 void Server::handlePendingJoinEvents()
 {
     const auto now = steady_clock::now();
-    
+
     auto it = pendingJoinEvents.begin();
     while (it != pendingJoinEvents.end()) {
         auto timeDiff = duration_cast<seconds>(now - it->lastSent).count();
-        
+
         if (timeDiff >= 4 || it->retries == 0) {
-            const auto buffer = BinaryProtocol::serializePlayerEvent(it->event);
+            const auto buffer
+                = BinaryProtocol::serializePlayerEvent(it->event);
             network.sendTo(buffer, it->endpoint);
-            
+
             it->lastSent = now;
             it->retries++;
-            
-            logEvent("[SERVER ENGINE] Join event retry " + std::to_string(it->retries) + 
-                     " for client " + std::to_string(it->event.playerId));
+
+            logEvent("[SERVER ENGINE] Join event retry "
+                + std::to_string(it->retries) + " for client "
+                + std::to_string(it->event.playerId));
 
             if (it->retries >= MAX_DEATH_RETRIES) {
-                logEvent("[SERVER ENGINE] Join event max retries reached for client " + 
-                         std::to_string(it->event.playerId));
+                logEvent(
+                    "[SERVER ENGINE] Join event max retries reached for client "
+                    + std::to_string(it->event.playerId));
                 it = pendingJoinEvents.erase(it);
             } else {
                 ++it;
@@ -796,7 +875,8 @@ void Server::logEvent(const std::string &message)
     std::lock_guard<std::mutex> lock(logMutex);
     auto now = std::chrono::system_clock::now();
     auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-        now.time_since_epoch()) % 1000;
+                  now.time_since_epoch())
+        % 1000;
     std::time_t timeNow = std::chrono::system_clock::to_time_t(now);
     std::tm tmNow;
 #ifdef _WIN32
@@ -806,28 +886,45 @@ void Server::logEvent(const std::string &message)
 #endif
 
     std::stringstream ss;
-    ss << std::put_time(&tmNow, "%H:%M:%S.")
-       << std::setw(3) << std::setfill('0') << ms.count();
+    ss << std::put_time(&tmNow, "%H:%M:%S.") << std::setw(3)
+       << std::setfill('0') << ms.count();
 
     if (message.find("[SERVER ENGINE]") != std::string::npos) {
         if (serverLogFile.is_open()) {
             if (message.find("Server started") != std::string::npos) {
-                serverLogFile << "[SERVER ENGINE] Server started on port 4242 - " << ss.str() << "\n";
-                serverLogFile << "[SERVER ENGINE] Server is now listening for incoming data. - " << ss.str() << "\n";
-                serverLogFile << "[SERVER ENGINE] Network initialization successful - " << ss.str() << "\n";
-                serverLogFile << "[SERVER ENGINE] Game engine initialized - " << ss.str() << "\n";
-                serverLogFile << "[SERVER ENGINE] Waiting for players to connect... - " << ss.str() << "\n";
+                serverLogFile
+                    << "[SERVER ENGINE] Server started on port 4242 - "
+                    << ss.str() << "\n";
+                serverLogFile
+                    << "[SERVER ENGINE] Server is now listening for incoming data. - "
+                    << ss.str() << "\n";
+                serverLogFile
+                    << "[SERVER ENGINE] Network initialization successful - "
+                    << ss.str() << "\n";
+                serverLogFile << "[SERVER ENGINE] Game engine initialized - "
+                              << ss.str() << "\n";
+                serverLogFile
+                    << "[SERVER ENGINE] Waiting for players to connect... - "
+                    << ss.str() << "\n";
             } else {
                 static int fakePlayerId = 1;
                 static bool gameStarted = false;
-                
-                if (!gameStarted && message.find("New client connected") != std::string::npos) {
-                    serverLogFile << "[SERVER ENGINE] Player " << fakePlayerId << " connected from IP 127.0.0.1:5000" << fakePlayerId << " - " << ss.str() << "\n";
-                    serverLogFile << "[SERVER ENGINE] Game session " << fakePlayerId << " initialized - " << ss.str() << "\n";
+
+                if (!gameStarted
+                    && message.find("New client connected")
+                        != std::string::npos) {
+                    serverLogFile << "[SERVER ENGINE] Player " << fakePlayerId
+                                  << " connected from IP 127.0.0.1:5000"
+                                  << fakePlayerId << " - " << ss.str() << "\n";
+                    serverLogFile << "[SERVER ENGINE] Game session "
+                                  << fakePlayerId << " initialized - "
+                                  << ss.str() << "\n";
                     fakePlayerId++;
                     if (fakePlayerId > 2) {
                         gameStarted = true;
-                        serverLogFile << "[SERVER ENGINE] Game starting with " << (fakePlayerId-1) << " players - " << ss.str() << "\n";
+                        serverLogFile << "[SERVER ENGINE] Game starting with "
+                                      << (fakePlayerId - 1) << " players - "
+                                      << ss.str() << "\n";
                     }
                 } else {
                     serverLogFile << message << " - " << ss.str() << "\n";
@@ -838,9 +935,12 @@ void Server::logEvent(const std::string &message)
         if (gameLogFile.is_open()) {
             static bool levelStarted = false;
             if (!levelStarted) {
-                gameLogFile << "[GAME ENGINE] Level 1 initialized - " << ss.str() << "\n";
-                gameLogFile << "[GAME ENGINE] Loading game assets - " << ss.str() << "\n";
-                gameLogFile << "[GAME ENGINE] Spawning initial entities - " << ss.str() << "\n";
+                gameLogFile << "[GAME ENGINE] Level 1 initialized - "
+                            << ss.str() << "\n";
+                gameLogFile << "[GAME ENGINE] Loading game assets - "
+                            << ss.str() << "\n";
+                gameLogFile << "[GAME ENGINE] Spawning initial entities - "
+                            << ss.str() << "\n";
                 levelStarted = true;
             }
             gameLogFile << message << " - " << ss.str() << "\n";

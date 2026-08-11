@@ -250,8 +250,7 @@ PlayerEventLevel BinaryProtocol::deserializePlayerEventLevel(
     return event;
 }
 
-vector<unsigned char> BinaryProtocol::serializePacketAck(
-    const PacketAck &ack)
+vector<unsigned char> BinaryProtocol::serializePacketAck(const PacketAck &ack)
 {
     vector<unsigned char> buffer(sizeof(PacketAck));
     PacketAck tempAck = ack;

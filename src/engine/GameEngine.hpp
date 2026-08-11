@@ -27,8 +27,8 @@
 #include "Components/SpeedBoost.hpp"
 #include "Components/Turret.hpp"
 #include "EngineConfig.hpp"
-#include "Registry.hpp"
 #include "Protocol.hpp"
+#include "Registry.hpp"
 #include <chrono>
 #include <vector>
 
@@ -46,8 +46,7 @@ static constexpr float PHYSICS_INTERVAL = 1.0f / 20.0f;
 namespace rtype {
 class GameEngine {
 public:
-    GameEngine(
-        Registry &registry, const EngineConfig &config);
+    GameEngine(Registry &registry, const EngineConfig &config);
     void initializeObstacles();
     void runSystems();
     void update();
@@ -121,14 +120,13 @@ public:
     void detachForcesFromPlayer(
         Registry &registry, const ecs::Entity playerEntity) const;
 
-    const vector<Sprite>& getCurrentSprites() const { return currentSprites; }
+    const vector<Sprite> &getCurrentSprites() const { return currentSprites; }
 
     void addPlayerEvent(const PlayerEvent &event);
 
     [[nodiscard]] const EngineConfig &getConfig() const { return config; }
 
     [[nodiscard]] unsigned char getLevel() const { return currentLevel; }
-
 
     [[nodiscard]] vector<Sprite> &getCurrentObstacles()
     {

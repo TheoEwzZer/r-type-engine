@@ -45,10 +45,8 @@ public:
         static const value_type empty {};
         return (idx < data.size()) ? data[idx] : empty;
     }
-    
-    void reserve(size_type new_cap) {
-        data.reserve(new_cap);
-    }
+
+    void reserve(size_type new_cap) { data.reserve(new_cap); }
 
     iterator begin() { return data.begin(); }
 

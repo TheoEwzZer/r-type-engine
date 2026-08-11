@@ -11,10 +11,8 @@
 
 using namespace rtype;
 
-GameEngine::GameEngine(
-    Registry &registry, const EngineConfig &config) :
-    registry(registry),
-    config(config)
+GameEngine::GameEngine(Registry &registry, const EngineConfig &config) :
+    registry(registry), config(config)
 {
     gen = mt19937(rd());
     registry.registerComponent<Position>();
@@ -628,29 +626,34 @@ void GameEngine::systemPositionProjectile(Registry &registry,
     const size_t minSize = min({ positions.size(), projectiles.size() });
     auto colliderEntities = registry.getEntities<Collider>();
     auto forceEntities = registry.getEntities<Force>();
-    
+
     const int CELL_SIZE = 128;
     static unordered_map<int, vector<pair<Entity, Collider>>> spatialGrid;
-    for (auto& [key, vec] : spatialGrid) {
+    for (auto &[key, vec] : spatialGrid) {
         vec.clear();
     }
-    
+
     for (const auto &[obstacleEntity, obstacle] : colliderEntities) {
-        if (!registry.isEntityAlive(obstacleEntity)) continue;
+        if (!registry.isEntityAlive(obstacleEntity))
+            continue;
         auto &posOpt = registry.getComponent<Position>(obstacleEntity);
-        if (!posOpt.has_value()) continue;
+        if (!posOpt.has_value())
+            continue;
         int minX = posOpt->x / CELL_SIZE;
         int maxX = (posOpt->x + obstacle.width * 2) / CELL_SIZE;
         int minY = posOpt->y / CELL_SIZE;
         int maxY = (posOpt->y + obstacle.height * 2) / CELL_SIZE;
-        
+
         // Anti-lag bounds check
-        if (maxX - minX > 10) maxX = minX + 10;
-        if (maxY - minY > 10) maxY = minY + 10;
-        
+        if (maxX - minX > 10)
+            maxX = minX + 10;
+        if (maxY - minY > 10)
+            maxY = minY + 10;
+
         for (int x = minX; x <= maxX; ++x) {
             for (int y = minY; y <= maxY; ++y) {
-                spatialGrid[x + y * 1000].emplace_back(obstacleEntity, obstacle);
+                spatialGrid[x + y * 1000].emplace_back(
+                    obstacleEntity, obstacle);
             }
         }
     }
@@ -710,38 +713,49 @@ void GameEngine::systemPositionProjectile(Registry &registry,
         if (!forceOpt.has_value()) {
             continue;
         }
-        
-        const GameplayAsset forceAsset = forceOpt->level == 1 ? FORCE1 : FORCE2;
-        int fWidth = static_cast<int>(AssetManager::getWidth(forceAsset) * 1.5f);
-        int fHeight = static_cast<int>(AssetManager::getHeight(forceAsset) * 1.5f);
-        
+
+        const GameplayAsset forceAsset
+            = forceOpt->level == 1 ? FORCE1 : FORCE2;
+        int fWidth
+            = static_cast<int>(AssetManager::getWidth(forceAsset) * 1.5f);
+        int fHeight
+            = static_cast<int>(AssetManager::getHeight(forceAsset) * 1.5f);
+
         int pMinX = forcePosOpt->x / CELL_SIZE;
         int pMaxX = (forcePosOpt->x + fWidth) / CELL_SIZE;
         int pMinY = forcePosOpt->y / CELL_SIZE;
         int pMaxY = (forcePosOpt->y + fHeight) / CELL_SIZE;
-        
-        if (pMaxX - pMinX > 10) pMaxX = pMinX + 10;
-        if (pMaxY - pMinY > 10) pMaxY = pMinY + 10;
-        
+
+        if (pMaxX - pMinX > 10)
+            pMaxX = pMinX + 10;
+        if (pMaxY - pMinY > 10)
+            pMaxY = pMinY + 10;
+
         static vector<Entity> alreadyChecked;
         alreadyChecked.clear();
-        
+
         for (int x = pMinX; x <= pMaxX; ++x) {
             for (int y = pMinY; y <= pMaxY; ++y) {
                 int hash = x + y * 1000;
-                if (!spatialGrid.contains(hash)) continue;
+                if (!spatialGrid.contains(hash))
+                    continue;
                 for (auto &[enemyEntity, enemy] : spatialGrid[hash]) {
-                    if (ranges::find(alreadyChecked, enemyEntity) != alreadyChecked.end()) continue;
+                    if (ranges::find(alreadyChecked, enemyEntity)
+                        != alreadyChecked.end())
+                        continue;
                     alreadyChecked.push_back(enemyEntity);
-                    if (!registry.isEntityAlive(enemyEntity)) continue;
-                    auto &enemyPosOpt = registry.getComponent<Position>(enemyEntity);
-                    if (!enemyPosOpt.has_value()) continue;
-                    if (ranges::find(force.hitObstacles, enemyEntity) != force.hitObstacles.end()) continue;
+                    if (!registry.isEntityAlive(enemyEntity))
+                        continue;
+                    auto &enemyPosOpt
+                        = registry.getComponent<Position>(enemyEntity);
+                    if (!enemyPosOpt.has_value())
+                        continue;
+                    if (ranges::find(force.hitObstacles, enemyEntity)
+                        != force.hitObstacles.end())
+                        continue;
 
                     if (checkCollisionWithObstacle(forcePosOpt.value(),
-                            enemyPosOpt.value(),
-                            fWidth,
-                            fHeight,
+                            enemyPosOpt.value(), fWidth, fHeight,
                             enemy.width * 2, enemy.height * 2, 0, 0)) {
 
                         auto &enemyHealthOpt
@@ -790,27 +804,33 @@ void GameEngine::systemPositionProjectile(Registry &registry,
             = AssetManager::getHeight(projectileAsset) * 2;
         const int power = projectile->isCharged ? (projectile->power * 2)
                                                 : projectile->power;
-                                                
+
         int pMinX = projectilePos.x / CELL_SIZE;
         int pMaxX = (projectilePos.x + projectileWidth) / CELL_SIZE;
         int pMinY = projectilePos.y / CELL_SIZE;
         int pMaxY = (projectilePos.y + projectileHeight) / CELL_SIZE;
-        
-        if (pMaxX - pMinX > 10) pMaxX = pMinX + 10;
-        if (pMaxY - pMinY > 10) pMaxY = pMinY + 10;
-        
+
+        if (pMaxX - pMinX > 10)
+            pMaxX = pMinX + 10;
+        if (pMaxY - pMinY > 10)
+            pMaxY = pMinY + 10;
+
         static vector<Entity> alreadyCheckedProj;
         alreadyCheckedProj.clear();
         bool hit = false;
-        
+
         for (int x = pMinX; x <= pMaxX && !hit; ++x) {
             for (int y = pMinY; y <= pMaxY && !hit; ++y) {
                 int hash = x + y * 1000;
-                if (!spatialGrid.contains(hash)) continue;
+                if (!spatialGrid.contains(hash))
+                    continue;
                 for (auto &[obstacleEntity, obstacle] : spatialGrid[hash]) {
-                    if (ranges::find(alreadyCheckedProj, obstacleEntity) != alreadyCheckedProj.end()) continue;
+                    if (ranges::find(alreadyCheckedProj, obstacleEntity)
+                        != alreadyCheckedProj.end())
+                        continue;
                     alreadyCheckedProj.push_back(obstacleEntity);
-                    if (!registry.isEntityAlive(obstacleEntity)) continue;
+                    if (!registry.isEntityAlive(obstacleEntity))
+                        continue;
                     if (ranges::find(projectile->hitObstacles, obstacleEntity)
                         != projectile->hitObstacles.end()) {
                         continue;
@@ -821,8 +841,9 @@ void GameEngine::systemPositionProjectile(Registry &registry,
                         continue;
                     }
                     if (checkCollisionWithObstacle(projectilePos,
-                            obstaclePosOpt.value(), projectileWidth, projectileHeight,
-                            obstacle.width * 2, obstacle.height * 2, 0, 0)) {
+                            obstaclePosOpt.value(), projectileWidth,
+                            projectileHeight, obstacle.width * 2,
+                            obstacle.height * 2, 0, 0)) {
                         projectile->hitObstacles.emplace_back(obstacleEntity);
 
                         auto &obstacleHealthOpt
@@ -839,12 +860,16 @@ void GameEngine::systemPositionProjectile(Registry &registry,
                             if (registry.getComponent<Enemy>(obstacleEntity)
                                     .has_value()) {
                                 addToScore(100);
-                                registry.emplaceComponent<Respawn>(obstacleEntity,
-                                    steady_clock::now() + milliseconds(64 * 4));
-                                registry.removeComponent<Controllable>(obstacleEntity);
+                                registry.emplaceComponent<Respawn>(
+                                    obstacleEntity,
+                                    steady_clock::now()
+                                        + milliseconds(64 * 4));
+                                registry.removeComponent<Controllable>(
+                                    obstacleEntity);
                                 registry.emplaceComponent<Animation>(
                                     obstacleEntity, 64, 0, 4, ENEMY_DEATH);
-                                if (registry.getComponent<Boss1>(obstacleEntity)
+                                if (registry
+                                        .getComponent<Boss1>(obstacleEntity)
                                         .has_value()) {
                                     boss1Defeated = true;
                                 }
@@ -854,7 +879,7 @@ void GameEngine::systemPositionProjectile(Registry &registry,
                                 registry.killEntity(obstacleEntity);
                             }
                         }
-                        
+
                         if (!projectile->isCharged) {
                             playerEvents.emplace_back(Event::DESTROY,
                                 static_cast<unsigned int>(projectileEntity));
@@ -865,7 +890,8 @@ void GameEngine::systemPositionProjectile(Registry &registry,
                     }
                 }
             }
-            if (hit) break;
+            if (hit)
+                break;
         }
     }
 }
@@ -1183,14 +1209,16 @@ void GameEngine::systemBossMovement(Registry &registry,
 
         // Boss Phase 2 (Enrage Mode)
         const auto entityId = static_cast<unsigned int>(i);
-        auto &healthOpt = registry.getComponent<Health>(registry.getEntity(entityId));
+        auto &healthOpt
+            = registry.getComponent<Health>(registry.getEntity(entityId));
         if (healthOpt.has_value() && healthOpt->lives < 500) {
             amplitude = 250.0f;
             frequency = 3.5f; // Bouge beaucoup plus vite
         }
 
         float baseHeight = ::WINDOW_HEIGHT / 2.0f;
-        pos->y = static_cast<int>(baseHeight + sin(currentTime * frequency) * amplitude);
+        pos->y = static_cast<int>(
+            baseHeight + sin(currentTime * frequency) * amplitude);
     }
 }
 
@@ -1212,7 +1240,8 @@ void GameEngine::systemBoss1Position(Registry &registry,
 
         // Boss Phase 2 (Enrage Mode)
         const auto entityId = static_cast<unsigned int>(i);
-        auto &healthOpt = registry.getComponent<Health>(registry.getEntity(entityId));
+        auto &healthOpt
+            = registry.getComponent<Health>(registry.getEntity(entityId));
         float currentCooldown = mob->shootCooldown;
         if (healthOpt.has_value() && healthOpt->lives < 500) {
             currentCooldown = 0.5f; // Tire 2x plus vite (de base 1.0f)

@@ -9,11 +9,11 @@
 
 #include "ClientEngine/ClientEngine.hpp"
 #include "Protocol.hpp"
+#include "src/Network/INetworkClient.hpp"
 #include "src/Utils/InputManager/InputManager.hpp"
 #include <SFML/Audio.hpp>
 #include <SFML/Graphics.hpp>
 #include <algorithm>
-#include "src/Network/INetworkClient.hpp"
 #include <chrono>
 #include <iostream>
 #include <random>
@@ -53,7 +53,8 @@ public:
             comboMultiplier++;
             comboTimer = 2.0f;
             if (comboMultiplier > 1) {
-                comboText.setString("Combo x" + to_string(comboMultiplier) + "!");
+                comboText.setString(
+                    "Combo x" + to_string(comboMultiplier) + "!");
                 comboText.setScale(1.5f, 1.5f); // Pop effect!
             }
         }
@@ -146,18 +147,20 @@ private:
     int skin;
     sf::Text lagText;
     int64_t duration = 0;
-    
+
     float screenShakeDuration = 0.0f;
     float screenShakeIntensity = 0.0f;
     sf::View mainView;
     void triggerScreenShake(float durationSec, float intensity);
-    
+
     struct PendingEvent {
         PlayerEvent event;
         steady_clock::time_point lastSent;
     };
+
     std::vector<PendingEvent> pendingEvents;
-    void spawnExplosionParticles(sf::Vector2f position, int count, sf::Color color);
+    void spawnExplosionParticles(
+        sf::Vector2f position, int count, sf::Color color);
     uint32_t nextPacketId = 1;
 };
 }

@@ -152,9 +152,7 @@ public:
         const PlayerEventLevel &event);
     static PlayerEventLevel deserializePlayerEventLevel(
         const vector<unsigned char> &buffer);
-    static vector<unsigned char> serializePacketAck(
-        const PacketAck &ack);
-    static PacketAck deserializePacketAck(
-        const vector<unsigned char> &buffer);
+    static vector<unsigned char> serializePacketAck(const PacketAck &ack);
+    static PacketAck deserializePacketAck(const vector<unsigned char> &buffer);
 };
 }

@@ -10,9 +10,9 @@
 
 Client::Client(sf::RenderWindow &window, InputManager &inputManager,
     bool spectatorMode, int skin) :
-    network(std::make_unique<AsioNetworkClient>("127.0.0.1", 4242)), window(window),
-    clientId(0), clientIdReceived(false), inputManager(inputManager),
-    lastProjectileTime(steady_clock::now()),
+    network(std::make_unique<AsioNetworkClient>("127.0.0.1", 4242)),
+    window(window), clientId(0), clientIdReceived(false),
+    inputManager(inputManager), lastProjectileTime(steady_clock::now()),
     clientEngine(make_unique<ClientEngine>()), spectatorMode(spectatorMode),
     skin(skin)
 {
@@ -57,7 +57,7 @@ Client::Client(sf::RenderWindow &window, InputManager &inputManager,
     lagText.setFillColor(sf::Color::White);
     lagText.setPosition(10, 40);
     lagText.setString("Lag: 0 ms");
-    
+
     comboText.setFont(font);
     comboText.setCharacterSize(28);
     comboText.setFillColor(sf::Color(255, 200, 0, 255));
@@ -184,7 +184,8 @@ void Client::updateParticles()
     }
 }
 
-void Client::spawnExplosionParticles(sf::Vector2f position, int count, sf::Color color)
+void Client::spawnExplosionParticles(
+    sf::Vector2f position, int count, sf::Color color)
 {
     random_device rd;
     mt19937 gen(rd());
@@ -322,15 +323,16 @@ void Client::handlePlayerInput(Direction &dx, Direction &dy)
                 0, inputManager.getControllerBackButton()))) {
         window.close();
         PlayerEvent event { Event::DESTROY, clientId, nextPacketId++ };
-        pendingEvents.push_back({event, steady_clock::now()});
+        pendingEvents.push_back({ event, steady_clock::now() });
         auto buffer = BinaryProtocol::serializePlayerEvent(event);
         network->send(buffer);
     }
 
     bool isEKeyPressed = sf::Keyboard::isKeyPressed(sf::Keyboard::E);
     if (isEKeyPressed && !wasEKeyPressed) {
-        PlayerEvent event { Event::DETACH_ATTACH_FORCE, clientId, nextPacketId++ };
-        pendingEvents.push_back({event, steady_clock::now()});
+        PlayerEvent event { Event::DETACH_ATTACH_FORCE, clientId,
+            nextPacketId++ };
+        pendingEvents.push_back({ event, steady_clock::now() });
         auto buffer = BinaryProtocol::serializePlayerEvent(event);
         network->send(buffer);
     }
@@ -346,7 +348,7 @@ void Client::fireProjectile(const Event shootEvent)
         return;
     }
     const PlayerEvent event { shootEvent, clientId, nextPacketId++ };
-    pendingEvents.push_back({event, steady_clock::now()});
+    pendingEvents.push_back({ event, steady_clock::now() });
     auto buffer = BinaryProtocol::serializePlayerEvent(event);
     network->send(buffer);
     lastProjectileTime = now;
@@ -370,10 +372,11 @@ void Client::handleSocketSend(const Direction dx, const Direction dy)
         lastSend = now;
         lastSentNone = ((dx == NONE) && (dy == NONE));
     }
-    
+
     // Resend pending reliable events
     for (auto &pending : pendingEvents) {
-        if (duration_cast<milliseconds>(now - pending.lastSent).count() >= 200) {
+        if (duration_cast<milliseconds>(now - pending.lastSent).count()
+            >= 200) {
             auto buffer = BinaryProtocol::serializePlayerEvent(pending.event);
             network->send(buffer);
             pending.lastSent = now;
@@ -393,7 +396,7 @@ void Client::handleSocketReceive()
             break;
         }
         recvBuffer.resize(length);
-            if (length > 0) {
+        if (length > 0) {
             uint8_t eventType = recvBuffer[0];
             if (eventType == static_cast<uint8_t>(Event::SCORE_UPDATE)) {
                 if (length >= sizeof(uint32_t)) {
@@ -408,7 +411,8 @@ void Client::handleSocketReceive()
                 for (const auto &sprite : receivedSprite) {
                     if (!sprites.contains(sprite.id)) {
                         sprites[sprite.id] = createSprite(sprite);
-                        spriteStates[sprite.id].targetPosition = sprites[sprite.id].getPosition();
+                        spriteStates[sprite.id].targetPosition
+                            = sprites[sprite.id].getPosition();
                     } else {
                         if (sprites[sprite.id].getTexture()
                             != &textures[sprite.spritesheetIndex]) {
@@ -417,35 +421,41 @@ void Client::handleSocketReceive()
                         }
                         sprites[sprite.id].setTextureRect(sf::IntRect(
                             sprite.x, sprite.y, sprite.width, sprite.height));
-                        
+
                         // Setup interpolation and dead reckoning
-                        sf::Vector2f newTarget = sf::Vector2f(
-                            static_cast<float>(sprite.gameX),
-                            static_cast<float>(sprite.gameY));
-                        
-                        spriteStates[sprite.id].velocity = newTarget - spriteStates[sprite.id].targetPosition;
+                        sf::Vector2f newTarget
+                            = sf::Vector2f(static_cast<float>(sprite.gameX),
+                                static_cast<float>(sprite.gameY));
+
+                        spriteStates[sprite.id].velocity = newTarget
+                            - spriteStates[sprite.id].targetPosition;
                         spriteStates[sprite.id].targetPosition = newTarget;
-                        
+
                         if (sprite.spritesheetIndex == 8) {
                             sprites[sprite.id].setRotation(
                                 static_cast<float>(sprite.rotation));
                         }
                     }
                 }
-            } else if (length == 5 && eventType == static_cast<uint8_t>(Event::ACK)) {
-                PacketAck ack = BinaryProtocol::deserializePacketAck(recvBuffer);
+            } else if (length == 5
+                && eventType == static_cast<uint8_t>(Event::ACK)) {
+                PacketAck ack
+                    = BinaryProtocol::deserializePacketAck(recvBuffer);
                 uint32_t id = ack.packetId;
-                auto it = std::remove_if(pendingEvents.begin(), pendingEvents.end(),
-                    [id](const PendingEvent &e) { return e.event.packetId == id; });
+                auto it = std::remove_if(pendingEvents.begin(),
+                    pendingEvents.end(), [id](const PendingEvent &e) {
+                        return e.event.packetId == id;
+                    });
                 pendingEvents.erase(it, pendingEvents.end());
             } else if (length == 9) {
-                const PlayerEvent event = BinaryProtocol::deserializePlayerEvent(recvBuffer);
-                
+                const PlayerEvent event
+                    = BinaryProtocol::deserializePlayerEvent(recvBuffer);
+
                 // Send ACK back for reliable events from server
                 PacketAck ack { Event::ACK, event.packetId };
                 auto ackBuffer = BinaryProtocol::serializePacketAck(ack);
                 network->send(ackBuffer);
-                
+
                 if (event.event == Event::BOSS_FIGHT) {
                     isBossFight = (event.playerId == 1);
                     if (isBossFight) {
@@ -464,18 +474,29 @@ void Client::handleSocketReceive()
                             && (it->second.getPosition().x > 0)
                             && (it->second.getPosition().x < 1128)) {
                             clientEngine->playSound("kill");
-                            
+
                             // Screen Shake and Particles
                             if (sheetIndex == 6) { // Boss Death
-                                triggerScreenShake(1.0f, 6.0f); // Reduced duration and intensity
-                                spawnExplosionParticles(it->second.getPosition(), 200, sf::Color(255, 100, 0, 255)); // Huge explosion
-                            } else if (sheetIndex == 5) { // Mob Death
-                                triggerScreenShake(0.08f, 1.5f); // Reduced duration and intensity
-                                spawnExplosionParticles(it->second.getPosition(), 30, sf::Color(255, 200, 0, 255)); // Medium explosion
+                                triggerScreenShake(1.0f,
+                                    6.0f); // Reduced duration and intensity
+                                spawnExplosionParticles(
+                                    it->second.getPosition(), 200,
+                                    sf::Color(
+                                        255, 100, 0, 255)); // Huge explosion
+                            } else if (sheetIndex == 5) {   // Mob Death
+                                triggerScreenShake(0.08f,
+                                    1.5f); // Reduced duration and intensity
+                                spawnExplosionParticles(
+                                    it->second.getPosition(), 30,
+                                    sf::Color(
+                                        255, 200, 0, 255)); // Medium explosion
                             }
                         } else if (sheetIndex == 9) { // Player Death
-                            triggerScreenShake(0.2f, 4.0f); // Reduced duration and intensity
-                            spawnExplosionParticles(it->second.getPosition(), 50, sf::Color(0, 150, 255, 255)); // Blue explosion
+                            triggerScreenShake(
+                                0.2f, 4.0f); // Reduced duration and intensity
+                            spawnExplosionParticles(it->second.getPosition(),
+                                50,
+                                sf::Color(0, 150, 255, 255)); // Blue explosion
                         }
                         sprites.erase(it);
                     }
@@ -491,8 +512,9 @@ void Client::handleSocketReceive()
                     }
                 }
             } else if (length == 12) {
-                const PlayerEventLife event = BinaryProtocol::deserializePlayerEventLife(recvBuffer);
-                
+                const PlayerEventLife event
+                    = BinaryProtocol::deserializePlayerEventLife(recvBuffer);
+
                 PacketAck ack { Event::ACK, event.packetId };
                 auto ackBuffer = BinaryProtocol::serializePacketAck(ack);
                 network->send(ackBuffer);
@@ -511,13 +533,15 @@ void Client::handleSocketReceive()
                         { Event::DESTROY, clientId });
                     network->send(buffer);
                 }
-            } else if (length == 5 && eventType != static_cast<uint8_t>(Event::ACK)) {
-                const PlayerEventLevel event = BinaryProtocol::deserializePlayerEventLevel(recvBuffer);
-                
+            } else if (length == 5
+                && eventType != static_cast<uint8_t>(Event::ACK)) {
+                const PlayerEventLevel event
+                    = BinaryProtocol::deserializePlayerEventLevel(recvBuffer);
+
                 PacketAck ack { Event::ACK, event.packetId };
                 auto ackBuffer = BinaryProtocol::serializePacketAck(ack);
                 network->send(ackBuffer);
-                
+
                 level = event.level;
                 if (level == 3) {
                     isGameOver = true;
@@ -560,19 +584,23 @@ void Client::handleSocketReceive()
 
 void Client::interpolateSprites()
 {
-    for (auto& [id, sprite] : sprites) {
-        if (!spriteStates.contains(id)) continue;
-        auto& state = spriteStates[id];
-        
-        // Exponential smoothing (Lerp): Move a percentage of the way to the target every frame.
-        // This makes movement smooth and naturally handles lag/jitter without freezing.
+    for (auto &[id, sprite] : sprites) {
+        if (!spriteStates.contains(id))
+            continue;
+        auto &state = spriteStates[id];
+
+        // Exponential smoothing (Lerp): Move a percentage of the way to the
+        // target every frame. This makes movement smooth and naturally handles
+        // lag/jitter without freezing.
         sf::Vector2f currentPos = sprite.getPosition();
         sf::Vector2f newPos;
         float smoothingFactor = 0.4f; // 40% towards the target every frame
-        
-        newPos.x = currentPos.x + (state.targetPosition.x - currentPos.x) * smoothingFactor;
-        newPos.y = currentPos.y + (state.targetPosition.y - currentPos.y) * smoothingFactor;
-        
+
+        newPos.x = currentPos.x
+            + (state.targetPosition.x - currentPos.x) * smoothingFactor;
+        newPos.y = currentPos.y
+            + (state.targetPosition.y - currentPos.y) * smoothingFactor;
+
         sprite.setPosition(newPos);
     }
 }
@@ -580,7 +608,7 @@ void Client::interpolateSprites()
 void Client::renderWindow()
 {
     interpolateSprites();
-    
+
     // Combo Logic
     if (comboTimer > 0.0f) {
         comboTimer -= 1.0f / 60.0f;
@@ -595,21 +623,25 @@ void Client::renderWindow()
             comboText.setString("");
         }
     }
-    
+
     // Screen Shake Logic
     if (screenShakeDuration > 0.0f) {
-        float offsetX = (static_cast<float>(rand() % 100) / 100.0f - 0.5f) * 2.0f * screenShakeIntensity;
-        float offsetY = (static_cast<float>(rand() % 100) / 100.0f - 0.5f) * 2.0f * screenShakeIntensity;
-        
-        mainView.setCenter(window.getSize().x / 2.0f + offsetX, window.getSize().y / 2.0f + offsetY);
+        float offsetX = (static_cast<float>(rand() % 100) / 100.0f - 0.5f)
+            * 2.0f * screenShakeIntensity;
+        float offsetY = (static_cast<float>(rand() % 100) / 100.0f - 0.5f)
+            * 2.0f * screenShakeIntensity;
+
+        mainView.setCenter(window.getSize().x / 2.0f + offsetX,
+            window.getSize().y / 2.0f + offsetY);
         screenShakeDuration -= 1.0f / 60.0f; // assuming 60fps
         if (screenShakeDuration <= 0.0f) {
-            mainView.setCenter(window.getSize().x / 2.0f, window.getSize().y / 2.0f); // Reset
+            mainView.setCenter(
+                window.getSize().x / 2.0f, window.getSize().y / 2.0f); // Reset
             screenShakeDuration = 0.0f;
         }
     }
     window.setView(mainView);
-    
+
     if (!isBossFight) {
         backgroundSprite1.move(static_cast<float>(-1 * level), 0.0f);
         backgroundSprite2.move(static_cast<float>(-1 * level), 0.0f);

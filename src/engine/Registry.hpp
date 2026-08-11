@@ -26,9 +26,11 @@ public:
     static constexpr unsigned int RESERVED_CLIENT_IDS = 4;
     static constexpr unsigned int PREALLOCATED_ENTITIES = 1024;
 
-    Registry() {
+    Registry()
+    {
         entitiesAlive.resize(PREALLOCATED_ENTITIES, false);
-        for (unsigned int i = PREALLOCATED_ENTITIES - 1; i >= RESERVED_CLIENT_IDS; --i) {
+        for (unsigned int i = PREALLOCATED_ENTITIES - 1;
+             i >= RESERVED_CLIENT_IDS; --i) {
             freeEntities.push(i);
         }
     }
@@ -56,7 +58,8 @@ public:
         const auto typeIndex = type_index { typeid(Component) };
         if (!componentsArrays.contains(typeIndex)) {
             auto sparseArr = make_any<SparseArray<Component>>();
-            any_cast<SparseArray<Component>&>(sparseArr).reserve(PREALLOCATED_ENTITIES);
+            any_cast<SparseArray<Component> &>(sparseArr).reserve(
+                PREALLOCATED_ENTITIES);
             componentsArrays[typeIndex] = sparseArr;
 
             componentDestroyers[typeIndex] = [](Registry &r, const Entity e) {

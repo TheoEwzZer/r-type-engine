@@ -16,10 +16,11 @@
 #include "EngineConfig.hpp"
 #include "GameEngine.hpp"
 #include "Network.hpp"
-#include "Registry.hpp"
 #include "Protocol.hpp"
+#include "Registry.hpp"
 #include <asio.hpp>
 #include <chrono>
+#include <fstream>
 #include <iostream>
 #include <map>
 #include <memory>
@@ -27,7 +28,6 @@
 #include <queue>
 #include <thread>
 #include <vector>
-#include <fstream>
 
 using namespace std;
 using namespace asio;
@@ -108,6 +108,7 @@ private:
         steady_clock::time_point lastSent;
         int retries;
     };
+
     vector<DeathEventRetry> pendingDeathEvents;
     const int MAX_DEATH_RETRIES = 10;
     void handlePendingDeathEvents();
@@ -118,6 +119,7 @@ private:
         int retries;
         udp::endpoint endpoint;
     };
+
     vector<EventRetry> pendingJoinEvents;
     void handlePendingJoinEvents();
 
