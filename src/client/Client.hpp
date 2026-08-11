@@ -52,9 +52,9 @@ public:
         if (newScore > lastScore) {
             comboMultiplier++;
             comboTimer = 2.0f;
-            if (comboMultiplier > 1) {
+            if (comboMultiplier > 2) {
                 comboText.setString(
-                    "Combo x" + to_string(comboMultiplier) + "!");
+                    "Combo x" + to_string(comboMultiplier - 1) + "!");
                 comboText.setScale(1.5f, 1.5f); // Pop effect!
             }
         }
