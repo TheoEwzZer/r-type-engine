@@ -1,5 +1,7 @@
 # R-Type Developer Guide
 
+*See the main [README](../README.md) or the [French README](../README_FRENCH.md) for an overview of the project.*
+
 ## 🏗️ Architecture Overview
 
 ### System Architecture
