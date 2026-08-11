@@ -39,5 +39,6 @@ build/
 .cache/
 
 *.txt
+!CMakeLists.txt
 !docs/network-protocol.txt
 *.log
