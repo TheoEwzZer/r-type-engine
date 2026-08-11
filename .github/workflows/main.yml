@@ -19,7 +19,7 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         sudo apt-get update
-        sudo apt-get install -y cmake g++ clang-format
+        sudo apt-get install -y cmake g++ clang-format libx11-dev libxrandr-dev libxcursor-dev libudev-dev libfreetype-dev libgl1-mesa-dev libflac-dev libvorbis-dev libopenal-dev libxext-dev
         sudo apt-get clean
     
     - name: Build (Ubuntu)
