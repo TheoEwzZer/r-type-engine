@@ -44,5 +44,4 @@ BreakBeforeBraces: WebKit
 BreakBeforeConceptDeclarations: Always
 BreakBeforeTernaryOperators: true
 BreakStringLiterals: false
-AlignTrailingComments:
-  OverEmptyLines: 1
+AlignTrailingComments: true
