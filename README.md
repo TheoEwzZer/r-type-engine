@@ -19,8 +19,6 @@
 
 <div align="center">
 
-![R-Type Gameplay](./screenshot.png)
-
 *R-Type running: intense multiplayer horizontal shoot'em up action with multiple players and enemies synchronized across the network.*
 
 </div>

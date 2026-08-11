@@ -19,8 +19,6 @@
 
 <div align="center">
 
-![Gameplay R-Type](./screenshot.png)
-
 *R-Type en action : de l'action multijoueur intense de shoot'em up horizontal avec plusieurs joueurs et ennemis synchronisés sur le réseau.*
 
 </div>
