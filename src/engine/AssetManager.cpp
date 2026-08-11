@@ -38,7 +38,6 @@ const unordered_map<GameplayAsset, unsigned short> AssetManager::spriteSheetIds
           { GameplayAsset::PLAYER_DEATH, 1 },
           { GameplayAsset::PLAYER_PROJECTILE, 1 },
           { GameplayAsset::PLAYER_PROJECTILE_LEFT, 1 },
-          { GameplayAsset::SPEED_POWERUP, 13 },
       };
 
 const unordered_map<GameplayAsset, unsigned short> AssetManager::rectXs = {
@@ -69,7 +68,6 @@ const unordered_map<GameplayAsset, unsigned short> AssetManager::rectXs = {
     { GameplayAsset::PLAYER_DEATH, 1 },
     { GameplayAsset::PLAYER_PROJECTILE, 249 },
     { GameplayAsset::PLAYER_PROJECTILE_LEFT, 267 },
-    { GameplayAsset::SPEED_POWERUP, 0 },
 };
 
 const unordered_map<GameplayAsset, unsigned short> AssetManager::rectYs = {
@@ -100,7 +98,6 @@ const unordered_map<GameplayAsset, unsigned short> AssetManager::rectYs = {
     { GameplayAsset::PLAYER_DEATH, 343 },
     { GameplayAsset::PLAYER_PROJECTILE, 90 },
     { GameplayAsset::PLAYER_PROJECTILE_LEFT, 90 },
-    { GameplayAsset::SPEED_POWERUP, 0 },
 };
 
 const unordered_map<GameplayAsset, unsigned short> AssetManager::widths = {
@@ -131,7 +128,6 @@ const unordered_map<GameplayAsset, unsigned short> AssetManager::widths = {
     { GameplayAsset::PLAYER_DEATH, 32 },
     { GameplayAsset::PLAYER_PROJECTILE, 16 },
     { GameplayAsset::PLAYER_PROJECTILE_LEFT, 16 },
-    { GameplayAsset::SPEED_POWERUP, 32 },
 };
 
 const unordered_map<GameplayAsset, unsigned short> AssetManager::heights = {
@@ -162,7 +158,6 @@ const unordered_map<GameplayAsset, unsigned short> AssetManager::heights = {
     { GameplayAsset::PLAYER_DEATH, 28 },
     { GameplayAsset::PLAYER_PROJECTILE, 4 },
     { GameplayAsset::PLAYER_PROJECTILE_LEFT, 4 },
-    { GameplayAsset::SPEED_POWERUP, 32 },
 };
 
 unsigned short AssetManager::getSpriteSheetId(const GameplayAsset asset)

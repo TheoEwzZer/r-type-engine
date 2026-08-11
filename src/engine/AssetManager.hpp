@@ -39,8 +39,7 @@ enum class GameplayAsset {
     PLAYER_CHARGED_PROJECTILE,
     PLAYER_DEATH,
     PLAYER_PROJECTILE,
-    PLAYER_PROJECTILE_LEFT,
-    SPEED_POWERUP,
+    PLAYER_PROJECTILE_LEFT
 };
 
 class AssetManager {

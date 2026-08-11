@@ -32,7 +32,6 @@ GameEngine::GameEngine(Registry &registry, const EngineConfig &config) :
     registry.registerComponent<Boss2>();
     registry.registerComponent<Enemy>();
     registry.registerComponent<Animation>();
-    registry.registerComponent<SpeedBoost>();
 
     registry.addSystem<Position, Controllable>(
         bind_front(&GameEngine::systemPositionControllable, this));
@@ -81,11 +80,6 @@ GameEngine::GameEngine(Registry &registry, const EngineConfig &config) :
 
     registry.addSystem<Force>(
         bind_front(&GameEngine::systemUpdateForces, this));
-    registry.addSystem<Position, SpeedBoost>(
-        bind_front(&GameEngine::systemSpeedBoostDrawable, this));
-
-    registry.addSystem<Position, SpeedBoost, Controllable>(
-        bind_front(&GameEngine::systemSpeedBoostCollision, this));
 }
 
 void GameEngine::systemUpdateForces(

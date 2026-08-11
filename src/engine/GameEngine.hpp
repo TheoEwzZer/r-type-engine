@@ -24,7 +24,6 @@
 #include "Components/Position.hpp"
 #include "Components/Projectile.hpp"
 #include "Components/Respawn.hpp"
-#include "Components/SpeedBoost.hpp"
 #include "Components/Turret.hpp"
 #include "EngineConfig.hpp"
 #include "Protocol.hpp"
@@ -53,17 +52,6 @@ public:
     void spawnBoss1();
     void spawnBoss2();
     void addToScore(const unsigned int points);
-    void spawnSpeedPowerUp();
-    void systemSpeedBoostDrawable(Registry &registry,
-        SparseArray<Position> &positions,
-        SparseArray<SpeedBoost> &speedBoosts);
-    void systemSpeedBoostCollision(Registry &registry,
-        SparseArray<Position> &positions, SparseArray<SpeedBoost> &speedBoosts,
-        SparseArray<Controllable> &controllables);
-    void systemSpeedBoostDuration(Registry &registry,
-        SparseArray<SpeedBoost> &speedBoosts,
-        SparseArray<Controllable> &controllables) const;
-
     void systemPositionControllable(Registry &registry,
         SparseArray<Position> &positions, SparseArray<Controllable> &controls);
 

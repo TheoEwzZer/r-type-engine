@@ -92,11 +92,7 @@ void GameEngine::update()
                 static_cast<unsigned int>(*force), 0 });
         forceCreated = true;
     }
-    static float lastPowerUpTime = 0.0f;
-    if (elapsedTime - lastPowerUpTime >= 15.0f) {
-        spawnSpeedPowerUp();
-        lastPowerUpTime = elapsedTime;
-    }
+
     if ((!isBossFight) && (!boss1Defeated) && (currentLevel == 1)
         && (elapsedTimeLevel >= boss1SpawnTime)) {
         spawnBoss1();
@@ -133,127 +129,6 @@ void GameEngine::update()
         if ((currentLevel <= 2) && (elapsedTimeLevel < (spawnTime - 15))) {
             generateObstacles();
             generateEnemies();
-        }
-    }
-}
-
-void GameEngine::systemSpeedBoostDrawable(Registry &registry,
-    SparseArray<Position> &positions, SparseArray<SpeedBoost> &speedBoosts)
-{
-    static bool powerUpExists = false;
-    powerUpExists = false;
-
-    const size_t posSize = positions.size();
-    for (size_t i = 0; i < posSize; ++i) {
-        const auto entity = registry.getEntity(static_cast<unsigned int>(i));
-        if (!registry.isEntityAlive(entity)) {
-            continue;
-        }
-
-        auto &pos = positions[i];
-        const auto &speedBoost = speedBoosts[i];
-
-        if ((!pos.has_value()) || (!speedBoost.has_value())) {
-            continue;
-        }
-        if (powerUpExists) {
-            registry.killEntity(entity);
-            continue;
-        }
-
-        powerUpExists = true;
-        pos->x -= 2;
-
-        if (pos->x < -50) {
-            registry.killEntity(entity);
-            continue;
-        }
-    }
-}
-
-void GameEngine::spawnSpeedPowerUp()
-{
-    const auto powerUpEntity = make_shared<Entity>(registry.spawnEntity());
-
-    uniform_int_distribution yPositionDist(100, ::WINDOW_HEIGHT - 100);
-    const int posY = yPositionDist(gen);
-
-    registry.emplaceComponent<Position>(*powerUpEntity, ::WINDOW_WIDTH, posY);
-    registry.emplaceComponent<SpeedBoost>(*powerUpEntity);
-    registry.emplaceComponent<Collider>(*powerUpEntity, 32, 32, 1.0f, 1.0f);
-    registry.emplaceComponent<Drawable>(*powerUpEntity,
-        Sprite { AssetManager::getSpriteSheetId(SPEED_POWERUP),
-            AssetManager::getRectX(SPEED_POWERUP),
-            AssetManager::getRectY(SPEED_POWERUP),
-            AssetManager::getWidth(SPEED_POWERUP),
-            AssetManager::getHeight(SPEED_POWERUP), ::WINDOW_WIDTH, posY, 2.0f,
-            2.0f, static_cast<unsigned int>(*powerUpEntity), 0 });
-}
-
-void GameEngine::systemSpeedBoostDuration(Registry &registry,
-    SparseArray<SpeedBoost> &speedBoosts,
-    SparseArray<Controllable> &controllables) const
-{
-    const size_t posSize = speedBoosts.size();
-    for (size_t i = 0; i < posSize; ++i) {
-        auto &boost = speedBoosts[i];
-        if ((!boost.has_value()) || (!boost->isActive)) {
-            continue;
-        }
-
-        const auto now = steady_clock::now();
-        const auto duration
-            = duration_cast<seconds>(now - boost->activationTime).count();
-
-        if (static_cast<float>(duration)
-            >= static_cast<float>(boost->duration)) {
-            auto &control = controllables[i];
-            if (control.has_value()) {
-                control->speed /= static_cast<float>(boost->speedMultiplier);
-            }
-            registry.removeComponent<SpeedBoost>(
-                registry.getEntity(static_cast<unsigned int>(i)));
-        }
-    }
-}
-
-void GameEngine::systemSpeedBoostCollision(Registry &registry,
-    SparseArray<Position> &positions, SparseArray<SpeedBoost> &speedBoosts,
-    SparseArray<Controllable> &controllables)
-{
-    const size_t posSize = positions.size();
-    for (size_t i = 0; i < posSize; ++i) {
-        auto &powerUpPos = positions[i];
-        auto &speedBoost = speedBoosts[i];
-
-        if ((!powerUpPos.has_value()) || (!speedBoost.has_value())) {
-            continue;
-        }
-        for (unsigned int j = 0; j < Registry::RESERVED_CLIENT_IDS; ++j) {
-            const auto playerEntity = registry.getEntity(j);
-            if (!registry.isEntityAlive(playerEntity)) {
-                continue;
-            }
-
-            auto &playerPos = registry.getComponent<Position>(playerEntity);
-            auto &control = controllables[j];
-
-            if ((!playerPos.has_value()) || (!control.has_value())) {
-                continue;
-            }
-
-            if (checkCollisionWithObstacle(powerUpPos.value(),
-                    playerPos.value(), AssetManager::getWidth(SPEED_POWERUP),
-                    AssetManager::getHeight(SPEED_POWERUP),
-                    AssetManager::getWidth(PLAYER),
-                    AssetManager::getHeight(PLAYER), 0, 0)) {
-                speedBoost->isActive = true;
-                speedBoost->activationTime = steady_clock::now();
-                control->speed *= speedBoost->speedMultiplier;
-                registry.killEntity(
-                    registry.getEntity(static_cast<unsigned int>(i)));
-                playerEvents.emplace_back(Event::DESTROY, i);
-            }
         }
     }
 }
