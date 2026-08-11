@@ -631,12 +631,12 @@ void Client::renderWindow()
         float offsetY = (static_cast<float>(rand() % 100) / 100.0f - 0.5f)
             * 2.0f * screenShakeIntensity;
 
-        mainView.setCenter(window.getSize().x / 2.0f + offsetX,
-            window.getSize().y / 2.0f + offsetY);
+        mainView.setCenter(mainView.getSize().x / 2.0f + offsetX,
+            mainView.getSize().y / 2.0f + offsetY);
         screenShakeDuration -= 1.0f / 60.0f; // assuming 60fps
         if (screenShakeDuration <= 0.0f) {
             mainView.setCenter(
-                window.getSize().x / 2.0f, window.getSize().y / 2.0f); // Reset
+                mainView.getSize().x / 2.0f, mainView.getSize().y / 2.0f); // Reset
             screenShakeDuration = 0.0f;
         }
     }
